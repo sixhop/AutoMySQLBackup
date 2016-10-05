@@ -95,6 +95,26 @@ load_default_config() {
   CONFIG_mail_address='root'
   CONFIG_encrypt='no'
   CONFIG_encrypt_password='password0123'
+  CONFIG_login_path='automysqldump'
+
+  # load mysql commands
+  mysql_commands
+}
+
+mysql_commands() {
+   if [[ -r "${CONFIG_configfile}" ]]; then source "${CONFIG_configfile}"; else let "N |= $N_config_file_missing"; fi
+
+	VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
+	NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
+	if [ "X`echo $VERSION | grep -E "5.6|5.7"`" != "X" ]; then
+		export MYSQLDUMP="mysqldump --login-path=$CONFIG_login_path"
+		export MYSQLSHOW="mysqlshow --login-path=$CONFIG_login_path"
+		export MYSQL="mysql --login-path=$CONFIG_login_path"
+	else
+		export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+		export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+		export MYSQL="mysql --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+	fi
 }
 
 # @return:	true, if variable is set; else false
@@ -437,7 +457,7 @@ backup_local_files () {
 # @deps:	load_default_config
 parse_configuration () {
     # OPT string for use with mysqldump ( see man mysqldump )
-    opt=( '--quote-names' '--opt' )
+    opt=( '--quote-names' '--opt' '--events' )
 
     # OPT string for use with mysql (see man mysql )
     mysql_opt=()
@@ -448,12 +468,21 @@ parse_configuration () {
 	# OPT string for use with mysqlstatus
 	opt_dbstatus=( '--status' )
 
-    [[ "${CONFIG_mysql_dump_usessl}" = "yes" ]] 		&& {
-	  opt=( "${opt[@]}" '--ssl' )
-	  mysql_opt=( "${mysql_opt[@]}" '--ssl' )
-	  opt_fullschema=( "${opt_fullschema[@]}" '--ssl' )
-	  opt_dbstatus=( "${opt_dbstatus[@]}" '--ssl' )
-    }
+	if [ "$NODOT_VER" -ge 56 ]; then
+		[[ "${CONFIG_mysql_dump_usessl}" = "yes" ]] 		&& {
+		  opt=( "${opt[@]}" '--ssl-mode=REQUIRED' )
+		  mysql_opt=( "${mysql_opt[@]}" '--ssl-mode=REQUIRED' )
+		  opt_fullschema=( "${opt_fullschema[@]}" '--ssl-mode=REQUIRED' )
+		  opt_dbstatus=( "${opt_dbstatus[@]}" '--ssl-mode=REQUIRED' )
+		}
+	else
+		[[ "${CONFIG_mysql_dump_usessl}" = "yes" ]] 		&& {
+		  opt=( "${opt[@]}" '--ssl' )
+		  mysql_opt=( "${mysql_opt[@]}" '--ssl' )
+		  opt_fullschema=( "${opt_fullschema[@]}" '--ssl' )
+		  opt_dbstatus=( "${opt_dbstatus[@]}" '--ssl' )
+		}
+	fi
     [[ "${CONFIG_mysql_dump_master_data}" ]] && (( ${CONFIG_mysql_dump_master_data} == 1 || ${CONFIG_mysql_dump_master_data} == 2 )) && { opt=( "${opt[@]}" "--master-data=${CONFIG_mysql_dump_master_data}" );}
     [[ "${CONFIG_mysql_dump_single_transaction}" = "yes" ]]	&& {
 	  opt=( "${opt[@]}" '--single-transaction' )
@@ -514,7 +543,7 @@ parse_configuration () {
 	  db=${i%.*}
 	  table=${i#"$db".}
 	  r='\*'; [[ "$i" =~ $r ]] || { tmp[z++]="$i"; continue; }
-	  while read -r; do tmp[z++]="${db}.${REPLY}"; done < <(mysql --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${mysql_opt[@]}" --batch --skip-column-names -e "select table_name from information_schema.tables where table_schema='${db}' and table_name like '${table//\*/%}';")
+	  while read -r; do tmp[z++]="${db}.${REPLY}"; done < <($MYSQL "${mysql_opt[@]}" --batch --skip-column-names -e "select table_name from information_schema.tables where table_schema='${db}' and table_name like '${table//\*/%}';")
 	done
 	for l in "${tmp[@]}"; do echo "exclude $l";done
 	CONFIG_table_exclude=("${tmp[@]}")
@@ -535,28 +564,28 @@ dbstatus() {
   if (( $CONFIG_dryrun )); then
     case "${CONFIG_mysql_dump_compression}" in
 	'gzip')
-	  echo "dry-running: mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt_dbstatus[@]} | gzip_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | gzip_compression > ${1}${suffix}";
 	  ;;
 	'bzip2')
-	  echo "dry-running: mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt_dbstatus[@]} | bzip2_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | bzip2_compression > ${1}${suffix}";
 	  ;;
 	*)
-	  echo "dry-running: mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt_dbstatus[@]} > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} > ${1}${suffix}";
 	  ;;
     esac
     return 0;
   else
     case "${CONFIG_mysql_dump_compression}" in
 	'gzip')
-	  mysqlshow --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt_dbstatus[@]}" | gzip_compression > "${1}${suffix}";
+	  $MYSQLSHOW "${opt_dbstatus[@]}" | gzip_compression > "${1}${suffix}";
 	  return $?
 	  ;;
 	'bzip2')
-	  mysqlshow --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt_dbstatus[@]}" | bzip2_compression > "${1}${suffix}";
+	  $MYSQLSHOW "${opt_dbstatus[@]}" | bzip2_compression > "${1}${suffix}";
 	  return $?
 	  ;;
 	*)
-	  mysqlshow --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt_dbstatus[@]}" > "${1}${suffix}";
+	  $MYSQLSHOW "${opt_dbstatus[@]}" > "${1}${suffix}";
 	  return $?
 	  ;;
     esac
@@ -571,28 +600,28 @@ fullschema () {
   if (( $CONFIG_dryrun )); then
     case "${CONFIG_mysql_dump_compression}" in
 	'gzip')
-	  echo "dry-running: mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt_fullschema[@]} | gzip_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | gzip_compression > ${1}${suffix}";
 	  ;;
 	'bzip2')
-	  echo "dry-running: mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt_fullschema[@]} | bzip2_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | bzip2_compression > ${1}${suffix}";
 	  ;;
 	*)
-	  echo "dry-running: mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt_fullschema[@]} > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} > ${1}${suffix}";
 	  ;;
     esac
     return 0;
   else
     case "${CONFIG_mysql_dump_compression}" in
 	'gzip')
-	  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt_fullschema[@]}" | gzip_compression > "${1}${suffix}";
+	  $MYSQLDUMP "${opt_fullschema[@]}" | gzip_compression > "${1}${suffix}";
 	  return $?
 	  ;;
 	'bzip2')
-	  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt_fullschema[@]}" | bzip2_compression > "${1}${suffix}";
+	  $MYSQLDUMP "${opt_fullschema[@]}" | bzip2_compression > "${1}${suffix}";
 	  return $?
 	  ;;
 	*)
-	  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt_fullschema[@]}" > "${1}${suffix}";
+	  $MYSQLDUMP "${opt_fullschema[@]}" > "${1}${suffix}";
 	  return $?
 	  ;;
     esac
@@ -710,13 +739,13 @@ process_dbs() {
 		uid="${uid:-8:8}"
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
-		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" | gzip_compression > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "$@" | gzip_compression > "$cfname";
 		  ;;
 		'bzip2')
-		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" | bzip2_compression > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "$@" | bzip2_compression > "$cfname";
 		  ;;
 		*)
-		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "$@" > "$cfname";
 		  ;;
 		esac
 		add_manifest_entry "$manifest_file" "$cfname" "$pid" "$db" && parse_manifest "$manifest_file" && cp -al "$cfname" "${CONFIG_backup_dir}"/latest/ && echo "Generated master backup $cfname" && return 0 || return 1
@@ -729,29 +758,29 @@ process_dbs() {
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
 		  fi
 		  ;;
 		'bzip2')
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  fi
 		  ;;
 		*)
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <(mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@") > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
 		  fi
 		  ;;
 		esac
@@ -765,28 +794,28 @@ process_dbs() {
 	  if (( $CONFIG_dryrun )); then
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
-		  echo "dry-running: mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt[@]} $@ | gzip_compression > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | gzip_compression > ${cfname}"
 		  ;;
 		'bzip2')
-		  echo "dry-running: mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt[@]} $@ | bzip2_compression > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | bzip2_compression > ${cfname}"
 		  ;;
 		*)
-		  echo "dry-running: mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host} ${opt[@]} $@ > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ > ${cfname}"
 		  ;;
 		esac
 		return 0;
 	  else
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
-		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" | gzip_compression > "${cfname}"
+		  $MYSQLDUMP "${opt[@]}" "$@" | gzip_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		'bzip2')
-		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" | bzip2_compression > "${cfname}"
+		  $MYSQLDUMP "${opt[@]}" "$@" | bzip2_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		*)
-		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" > "${cfname}"
+		  $MYSQLDUMP "${opt[@]}" "$@" > "${cfname}"
 		  ret=$?
 		  ;;
 		esac
@@ -850,7 +879,6 @@ directory_checks_enable_logging () {
 	[[ "${CONFIG_mysql_dump_dbstatus}" = 'yes' ]] && { checkdirs=( "${checkdirs[@]}" "${CONFIG_backup_dir}/status" ); }
 
     tmp_permcheck=0
-    printf '# Checking for permissions to write to folders:\n'
 
 
     # "dirname ${CONFIG_backup_dir}" exists?
@@ -873,14 +901,9 @@ directory_checks_enable_logging () {
 
 
     # -> check base folder
-    printf 'base folder %s ... ' "$(dirname "${CONFIG_backup_dir}")"
     if [[ -d "$(dirname "${CONFIG_backup_dir}")" ]]; then
 
-	printf 'exists ... ok.\n'
-	printf 'backup folder %s ... ' "${CONFIG_backup_dir}"
-
 	if [[ -d "${CONFIG_backup_dir}" ]]; then
-	    printf 'exists ... writable? ' 
 	    if (( $CONFIG_dryrun )); then
 	      printf 'dry-running. Skipping. Logging to /tmp\n'
 	      log_file="/tmp/${CONFIG_mysql_dump_host}-`date +%N`.log"
@@ -889,7 +912,6 @@ directory_checks_enable_logging () {
 	      tmp_permcheck=1
 	    else
 		if chk_folder_writable "${CONFIG_backup_dir}"; then
-		  printf 'yes. Proceeding.\n'
 		  log_file="${CONFIG_backup_dir}/${CONFIG_mysql_dump_host}-`date +%N`.log"
 		  log_errfile="${CONFIG_backup_dir}/ERRORS_${CONFIG_mysql_dump_host}-`date +%N`.log"
 		  activateIO "$log_file" "$log_errfile"
@@ -1063,7 +1085,7 @@ parse_databases() {
   printf "# Parsing databases ... "
   # bash 3.0
   local i;i=0;
-  while read -r; do alldbnames[i++]="$REPLY"; done < <(mysql --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${mysql_opt[@]}" --batch --skip-column-names -e "show databases")
+  while read -r; do alldbnames[i++]="$REPLY"; done < <($MYSQL "${mysql_opt[@]}" --batch --skip-column-names -e "show databases")
   unset i
 
   # mkfifo foo || exit; trap 'rm -f foo' EXIT
@@ -1643,7 +1665,7 @@ method_backup () {
 	load_default_config
 
 	trap mail_cleanup EXIT SIGHUP SIGINT SIGQUIT SIGTERM
-	if [[ -r "${CONFIG_configfile}" ]]; then source "${CONFIG_configfile}"; echo "Parsed config file \"${CONFIG_configfile}\""; else let "N |= $N_config_file_missing"; fi; echo
+	if [[ -r "${CONFIG_configfile}" ]]; then source "${CONFIG_configfile}"; else let "N |= $N_config_file_missing"; fi
 	if (( $opt_flag_config_file )); then if [[ -r "${opt_config_file}" ]]; then source "${opt_config_file}"; let "N |= $N_arg_conffile_parsed"; else let "N |= $N_arg_conffile_unreadable"; fi; else let "N |= $N_too_many_args"; fi
 
 	(( $CONFIG_dryrun )) && {
@@ -1969,7 +1991,7 @@ method_backup () {
 	# -> finished information
 	echo "Total disk space used for backup storage..."
 	echo "Size - Location"
-	echo `du -hsH "${CONFIG_backup_dir}"`
+	echo `du -hs --si "${CONFIG_backup_dir}"`
 	echo
 	echo "======================================================================"
 	# <- finished information
@@ -2209,7 +2231,7 @@ NO_ARGS=0
 E_OPTERROR=85
 
 if (( $# == $NO_ARGS )); then   # Script invoked with no command-line args?
-  echo "Invoking backup method."; echo; method_backup
+  method_backup
 fi
 
 while getopts ":c:blh" Option
