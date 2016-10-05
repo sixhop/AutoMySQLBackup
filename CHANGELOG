@@ -1,0 +1,164 @@
+#=====================================================================
+# Change Log
+#=====================================================================
+#
+# version 3.0_rc4 - (2011-11-24)
+#     - Removing mkfifo commands, thereby improving portability.
+#     - Fixing not working table exclude feature for wildcards.
+# version 3.0_rc3 - (2011-11-24)
+#     - Changed code to make it more portable, thereby resolving FreeBSD issue.
+# version 3.0_rc2 - (2011-11-21)
+#     - Added multicore support for bzip and gzip2.
+#     - Fixed error in README file.
+# version 3.0_rc1 - (2011-11-15)
+#     - Added differential backup method.
+#     - Added user-friendly method to recreate full backups out of differential ones.
+#     - Changed paramters, with which the script can be called, to make the new
+#       methods available.
+#     - Fixed some bugs.
+# version 3.0_beta2 - (2011-08-21)
+#     - Added possibility to backup local files. 
+#     - Added full schema backup.
+#     - Added master-data option.
+#     - Fixed some bugs.
+# version 3.0_beta1 - (2011-08-15)
+#     - REMOVED: Implementation of Variables containing full path to binaries to
+#       avoid possibly confusion with aliases or builtins. (by Johannes Kolter)
+#       Inside a bash script no aliases are used! This didn't make ANY sense!
+#       Thereby resolved bug item #3074425.
+#     - Changed some variables to be arrays, i.e. lists, and removed the ugly
+#       sed stuff.
+#       Fixed bug item #3169562
+#     - Added check for weekly and monthly backups, so that they are unique per day.
+#       bug item #3185389
+#     - Changed SHEBANG to #!/usr/bin/env bash  for portability reasons.
+#       bug item #3292873
+#     - Changed config file structure: read /etc/automysqlbackup/mysqlbackup.conf,
+#       if supplied read configfile parameter (no more -c or sth. like that, just
+#       the name of the file!),
+#       whatever isn't set yet, set in here to default values.
+#     - bug item #3110715: create a file in /etc/cron.d/daily and call the script
+#       from in there, i.e. place the script in /usr/local/bin
+#     - bug item #3082899: the PATH variables are different in ssh, you have to
+#       supply the complete path
+#     - Fixed bug item #3064547, suggestion accepted.
+#     - Fixed bug item #3031023, suggestion accepted.
+#     - Fixed bug item #3030604, resolved due to design correction.
+#     - Fixed bug item #3025849, as long as basename is in $PATH on your system.
+#     - Fixed bug item #3030478.
+#     - bug item #3054633: .muttrc entry save=yes will result in saving sent files!
+#     - Feature request item #1538588.
+#     - Feature request item #1538138.
+#     - Feature request item #1538142.
+#     - Feature request item #1541843 was already included.
+#     - Feature request item #2808012.
+#     - Feature request item #2831465.
+#     - Feature request item #3052484. Mysqldump already has an ssl option.
+#     - Feature request item #3190079. I hope cleaning up everything older than 24
+#       hours as a lower limit is good enough.
+#     - Feature request item #3284779 was already included. See CONFIG_mysql_dump_latest.
+#     - Feature request item #3053623.
+# version 2.6.0 - (2011-07-19)
+#     - Fixed bug where files would not email correctly (Fix by Jesse Vaughan)
+#     - Added section to encrypt .gz and .bz2 files using openssl (added by Jesse Vaughan)
+# version 2.5.1-01 - (2010-07-06)
+#     - Fixed pathname bug item #3025849 (by Johannes Kolter)
+# version 2.5.1 - (2010-07-04)
+#     - Added support for default and optional config file (by Johannes Kolter)
+#     - Rotating after backup was successful whith find(1) (by Johannes Kolter)
+#     - Implementation of Variables containing full path to binaries to
+#       avoid possibly confusion with aliases or builtins. (by Johannes Kolter)
+#     - Fixed bug where weekly backups were not being rotated.
+#       Added rotation of 5 monthly backups
+#       Now all old backups are deleted, not only the most recent one
+#       (inspired by oleg@bintime.com)
+#     - Use Debian special-file to access database (by Johannes Kolter)
+#     - Fixed bug ID: 1438565
+#       Moved IO redirection to a place before decicions are made and actions are taken.
+#       (inspired by Derk Bernhardt)
+#     - Fixed bug ID: #3000316 (reported by Sascha Feldhorst)
+#     - Fixed bug ID: #1529458 (reported by Natalie ( njwood ))
+#     - Fixed bug ID: #1548919 (reported by Piotr Kuczynski)
+# version 2.5 - (2006-01-15)
+#		Added support for setting MAXIMUM_PACKET_SIZE and CONFIG_mysql_dump_socket parameters (suggested by Yvo van Doorn)
+# version 2.4 - (2006-01-23)
+#    Fixed bug where weekly backups were not being rotated. (Fix by wolf02)
+#    Added hour an min to backup filename for the case where backups are taken multiple
+#    times in a day. NOTE This is not complete support for mutiple executions of the script
+#    in a single day.
+#    Added MAILCONTENT="quiet" option, see docs for details. (requested by snowsam)
+#    Updated path statment for compatibility with OSX.
+#    Added "CONFIG_mysql_dump_latest" to additionally store the last backup to a standard location. (request by Grant29)
+# version 2.3 - (2005-11-07)
+#    Better error handling and notification of errors (a long time coming)
+#    Compression on Backup server to MySQL server communications. 
+# version 2.2 - (2004-12-05)
+#    Changed from using depricated "-N" to "--skip-column-names".
+#    Added ability to have compressed backup's emailed out. (code from Thomas Heiserowski)
+#    Added maximum attachment size setting.
+# version 2.1 - (2004-11-04)
+#    Fixed a bug in daily rotation when not using gzip compression. (Fix by Rob Rosenfeld)
+# version 2.0 - (2004-07-28)
+#    Switched to using IO redirection instead of pipeing the output to the logfile.
+#    Added choice of compression of backups being gzip of bzip2.
+#    Switched to using functions to facilitate more functionality.
+#    Added option of either gzip or bzip2 compression. 
+# version 1.10 - (2004-07-17)
+#    Another fix for spaces in the paths (fix by Thomas von Eyben)
+#    Fixed bug when using PREBACKUP and POSTBACKUP commands containing many arguments.
+# version 1.9 - (2004-05-25)
+#    Small bug fix to handle spaces in LOGFILE path which contains spaces (reported by Thomas von Eyben)
+#    Updated docs to mention that Log email can be sent to multiple email addresses.
+# version 1.8 - (2004-05-01)
+#    Added option to make backups restorable to alternate database names
+#    meaning that a copy of the database can be created (Based on patch by Rene Hoffmann)
+#    Seperated options into standard and advanced.
+#    Removed " from single file dump DBMANES because it caused an error but
+#    this means that if DB's have spaces in the name they will not dump when CONFIG_mysql_dump_use_separate_dirs=no.
+#    Added -p option to mkdir commands to create multiple subdirs without error.
+#    Added disk usage and location to the bottom of the backup report.
+# version 1.7 - (2004-04-22)
+#    Fixed an issue where weelky backups would only work correctly if server
+#    locale was set to English (issue reported by Tom Ingberg)
+#    used "eval" for "rm" commands to try and resolve rotation issues.
+#    Changed name of status log so multiple scripts can be run at the same time.
+# version 1.6 - (2004-03-14)
+#   Added PREBACKUP and POSTBACKUP command functions. (patch by markpustjens)
+#   Added support for backing up DB's with Spaces in the name.
+#   (patch by markpustjens)
+# version 1.5 - (2004-02-24)
+#   Added the ability to exclude DB's when the "all" option is used.
+#   (Patch by kampftitan)
+# version 1.4 - (2004-02-02)
+#   Project moved to Sourceforge.net
+# version 1.3 - (2003-09-25)
+#   Added support for backing up "all" databases on the server without
+#    having to list each one seperately in the configuration.
+#   Added DB restore instructions.
+# version 1.2 - (2003-03-16)
+#   Added server name to the backup log so logs from multiple servers
+#   can be easily identified.
+# version 1.1 - (2003-03-13)
+#   Small Bug fix in monthly report. (Thanks Stoyanski)
+#   Added option to email log to any email address. (Inspired by Stoyanski)
+#   Changed Standard file name to .sh extention.
+#   Option are set using yes and no rather than 1 or 0.
+# version 1.0 - (2003-01-30)
+#   Added the ability to have all databases backup to a single dump
+#   file or seperate directory and file for each database.
+#   Output is better for log keeping.
+# version 0.6 - (2003-01-22)
+#   Bug fix for daily directory (Added in version 0.5) rotation.
+# version 0.5 - (2003-01-20)
+#   Added "daily" directory for daily backups for neatness (suggestion by Jason)
+#   Added CONFIG_mysql_dump_host option to allow backing up a remote server (Suggestion by Jason)
+#   Added "--quote-names" option to mysqldump command.
+#   Bug fix for handling the last and first of the year week rotation.
+# version 0.4 - (2002-11-06)
+#   Added the abaility for the script to create its own directory structure.
+# version 0.3 - (2002-10-01)
+#   Changed Naming of Weekly backups so they will show in order.
+# version 0.2 - (2002-09-27)
+#   Corrected weekly rotation logic to handle weeks 0 - 10 
+# version 0.1 - (2002-09-21)
+#   Initial Release
