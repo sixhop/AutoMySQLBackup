@@ -18,3 +18,5 @@ After that command give your mysql root password and you're done. If you have an
 
 
 Have a try to make MySQL backups easily with this adjusted script. If you encounter any errors feel free to drop an issue. :)
+
+For more Information check out http://www.sixhop.net/.
