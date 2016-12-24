@@ -1,6 +1,8 @@
 AutoMySQLBackup
 ===============
  A fork and further development of AutoMySQLBackup from sourceforge. http://sourceforge.net/projects/automysqlbackup/ 
+ 
+You can find a short german description below.
 
 Information
 -----------
@@ -37,3 +39,8 @@ After that command give your mysql root password and you're done. If you want to
 Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :)
 
 For more Information check out http://www.sixhop.net/.
+
+Deutsche Version
+================
+
+Mit diesem Skript können Sie von Ihren Datenbanken auf Ihrem MySQL Server Backups erstellen. Jede Datenbank wird dabei standardmäßig in einer eigenen Datei gespeichert, sodass Sie auch einzelne Datenbanken wiederherstellen können.
