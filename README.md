@@ -13,6 +13,8 @@ Automysqldumper uses mysqldump for creating the sql backup. By default databases
 zcat daily_andi_wiki_2016-12-24_03h59m_Saturday.sql.gz | mysql -u root -p
 ```
 
+Change the name of the file to your needs. After this simple step you get back the data into your database.
+
 Adjustments
 -----------
 
@@ -28,9 +30,10 @@ Per default this script uses the login path automysqldump.
 ```
 mysql_config_editor set --login-path=automysqldump --host=localhost --user=root --password
 ```
-After that command give your mysql root password and you're done. If you have another user to create the password with, feel free to edit the user parameter.
+
+After that command give your mysql root password and you're done. If you want to do your backup with another user, simply change the username.
 
 
-Have a try to make MySQL backups easily with this adjusted script. If you encounter any errors feel free to drop an issue. :)
+Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :)
 
 For more Information check out http://www.sixhop.net/.
