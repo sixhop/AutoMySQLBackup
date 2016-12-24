@@ -7,6 +7,12 @@ Information
 
 Creating backups means copy the data in a way where it can be restored again. To backup a mysql database server in most cases it is needed to create a dump from the database and its tables. If the data mysql stores in its data directory is simply copied, restoring the data in the mysql database will not be possible. This command line tool enables you to create and maintian mysql backups.
 
+Automysqldumper uses mysqldump for creating the sql backup. By default databases are backed up in separate gzipped files. To restore a database you can use:
+
+```
+zcat daily_andi_wiki_2016-12-24_03h59m_Saturday.sql.gz | mysql -u root -p
+```
+
 Adjustments
 -----------
 
@@ -15,7 +21,7 @@ You can find some original files from the sourceforge package. Some files are ad
 - support for login path (since MySQL 5.6.x a secure way to save your mysql credentials was implemented)
 - adjusted the use of --ssl because it became depreated in MySQL 5.7. The parameter --ssl-mode=REQUIRED is used instead.
 
-add login path
+Add login path
 --------------
 Per default this script uses the login path automysqldump.
 
