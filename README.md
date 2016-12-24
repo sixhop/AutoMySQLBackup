@@ -44,3 +44,5 @@ Deutsche Version
 ================
 
 Mit diesem Skript können Sie von Ihren Datenbanken auf Ihrem MySQL Server Backups erstellen. Jede MySQL Datenbank mit allen Tables wird dabei standardmäßig in einer eigenen Datei gespeichert, sodass Sie auch einzelne Datenbanken wiederherstellen können.
+
+Mit Hilfe der Anpassung für die Benutzung von login path zur Authentifizierung haben sie die Möglichkeit Ihr Passwort so zu speichern, dass sie es nicht bei jedem Aufruf der Backupskripts auf der Konsole und damit auch in der Prozessliste auftaucht.
