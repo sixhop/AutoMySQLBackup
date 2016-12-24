@@ -38,7 +38,7 @@ mysql_config_editor set --login-path=automysqldump --host=localhost --user=root 
 After that command give your mysql root password and you're done. If you want to do your backup with another user, simply change the username.
 
 
-Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :)
+Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :) (English or German)
 
 For more Information check out [managed hosting by sixhop.net](http://www.sixhop.net/).
 
