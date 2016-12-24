@@ -17,7 +17,7 @@ zcat daily_andi_wiki_2016-12-24_03h59m_Saturday.sql.gz | mysql -u root -p
 
 Change the name of the file to your needs. After this simple step you get back the data into your database.
 
-To setup this script have a look at the automysqlbackup.conf file. In there you have several options to configure the script to your needs.
+To setup this script have a look at the automysqlbackup.conf file. In there you have several options to configure the mysql backup script to your needs.
 
 Adjustments
 -----------
