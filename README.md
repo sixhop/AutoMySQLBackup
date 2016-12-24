@@ -40,7 +40,7 @@ After that command give your mysql root password and you're done. If you want to
 
 Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :)
 
-For more Information check out http://www.sixhop.net/.
+For more Information check out [managed hosting by sixhop.net](http://www.sixhop.net/).
 
 Deutsche Version
 ================
