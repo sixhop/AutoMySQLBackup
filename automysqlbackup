@@ -83,6 +83,8 @@ load_default_config() {
   CONFIG_mysql_dump_full_schema='yes'
   CONFIG_mysql_dump_dbstatus='yes'
   CONFIG_mysql_dump_differential='no'
+  CONFIG_mysql_dump_login_path='automysqldump'
+  CONFIG_mysql_dump_encrypted_login='no'
   CONFIG_backup_local_files=()
   CONFIG_db_names=()
   CONFIG_db_month_names=()
@@ -95,7 +97,6 @@ load_default_config() {
   CONFIG_mail_address='root'
   CONFIG_encrypt='no'
   CONFIG_encrypt_password='password0123'
-  CONFIG_login_path='automysqldump'
 
   # load mysql commands
   mysql_commands
@@ -104,12 +105,13 @@ load_default_config() {
 mysql_commands() {
    if [[ -r "${CONFIG_configfile}" ]]; then source "${CONFIG_configfile}"; else let "N |= $N_config_file_missing"; fi
 
-	VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
-	NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
-	if [ "X`echo $VERSION | grep -E "5.6|5.7"`" != "X" ]; then
-		export MYSQLDUMP="mysqldump --login-path=$CONFIG_login_path"
-		export MYSQLSHOW="mysqlshow --login-path=$CONFIG_login_path"
-		export MYSQL="mysql --login-path=$CONFIG_login_path"
+	#VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
+	#NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
+	if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
+	#if [ "X`echo $VERSION | grep -E "5.6|5.7"`" != "X" ]; then
+		export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
+		export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
+		export MYSQL="mysql --login-path=$CONFIG_mysql_dump_login_path"
 	else
 		export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
 		export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
