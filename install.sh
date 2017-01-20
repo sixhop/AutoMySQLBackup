@@ -37,6 +37,11 @@ upgrade_config_file () {
     echo ""
     echo "# Basic Settings"
     echo ""
+	echo "# since mysql 5.6.x connections can be stored securely"
+	echo "# add your connection with"
+	echo "# mysql_config_editor set --login-path=automysqldump --host=localhost --user=root --password"
+	echo "# automysqldump is using the login-path "automysqldump" as default"
+    echo ""
     echo "# Username to access the MySQL server e.g. dbuser"
     if isSet USERNAME; then
       printf '%s=%q\n' CONFIG_mysql_dump_username "${USERNAME-}"
@@ -479,8 +484,7 @@ echo
 if echo $PATH | grep "${bindir}" >/dev/null 2>&1; then
   printf "if you are running automysqlbackup under the same user as you run this install script,\nyou should be able to access it by running 'automysqlbackup' from the command line.\n"
   printf "if not, you have to check if 'echo \$PATH' has ${bindir} in it\n"
-  printf "\nSetup Complete!\n"
 else
   printf "if running under the current user, you have to use the full path ${bindir}/automysqlbackup since /usr/local/bin is not in 'echo \$PATH'\n"
-  printf "\nSetup Complete!\n"
 fi
+printf "\nSetup Complete!\n"
