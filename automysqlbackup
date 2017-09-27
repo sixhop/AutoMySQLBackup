@@ -97,26 +97,20 @@ load_default_config() {
   CONFIG_mail_address='root'
   CONFIG_encrypt='no'
   CONFIG_encrypt_password='password0123'
-
-  # load mysql commands
-  mysql_commands
 }
 
 mysql_commands() {
-   if [ -r "${CONFIG_configfile}" ]; then source "${CONFIG_configfile}"; else let "N |= $N_config_file_missing"; fi
-
-	VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
-	NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
-	if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
-	#if [ "X`echo $VERSION | grep -E "5.6|5.7"`" != "X" ]; then
-		export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
-		export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
-		export MYSQL="mysql --login-path=$CONFIG_mysql_dump_login_path"
-	else
-		export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-		export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-		export MYSQL="mysql --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-	fi
+  VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
+  NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
+  if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
+    export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQL="mysql --login-path=$CONFIG_mysql_dump_login_path"
+  else
+    export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQL="mysql --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+  fi
 }
 
 # @return:	true, if variable is set; else false
@@ -1670,6 +1664,9 @@ method_backup () {
 	if [[ -r "${CONFIG_configfile}" ]]; then source "${CONFIG_configfile}"; else let "N |= $N_config_file_missing"; fi
 	if (( $opt_flag_config_file )); then if [[ -r "${opt_config_file}" ]]; then source "${opt_config_file}"; let "N |= $N_arg_conffile_parsed"; else let "N |= $N_arg_conffile_unreadable"; fi; else let "N |= $N_too_many_args"; fi
 
+	# load mysql commands
+	mysql_commands
+	
 	(( $CONFIG_dryrun )) && {
 	  echo "NOTE: We are dry-running. That means, that the script just shows you what it would do, if it were operating normally."
 	  echo "THE PRINTED COMMANDS CAN'T BE COPIED AND EXECUTED IF THERE ARE SPECIAL CHARACTERS, SPACES, ETC. IN THERE THAT WOULD NEED TO BE PROPERLY QUOTED IN ORDER TO WORK. THESE WERE CORRECTLY QUOTED FOR THE OUTPUT COMMAND, BUT CAN'T BE SEEN NOW."
@@ -2037,6 +2034,9 @@ method_list_manifest_entries () {
 	if [[ -r "${CONFIG_configfile}" ]]; then source "${CONFIG_configfile}"; echo "Parsed config file \"${CONFIG_configfile}\""; else let "N |= $N_config_file_missing"; fi; echo
 	if (( $opt_flag_config_file )); then if [[ -r "${opt_config_file}" ]]; then source "${opt_config_file}"; let "N |= $N_arg_conffile_parsed"; else let "N |= $N_arg_conffile_unreadable"; fi; else let "N |= $N_too_many_args"; fi
 
+	# load mysql commands
+	mysql_commands
+	
 	export LC_ALL=C
 	PROGNAME=`basename $0`
 	PATH=${PATH}:/usr/local/bin:/usr/bin:/bin:/usr/local/mysql/bin 
