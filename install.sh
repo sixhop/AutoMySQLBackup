@@ -427,22 +427,22 @@ while [ $i -lt $n ]; do
   fi
   if [[ "$OSTYPE" == "linux-gnu" ]]; then
 	# Linux
-  	$MD5_CHECK="md5sum --check"
+  	MD5_CHECK="md5sum --check"
   elif [[ "$OSTYPE" == "darwin"* ]]; then
 	# Mac OSX
-  	$MD5_CHECK="md5 -r"
+  	MD5_CHECK="md5 -r"
   elif [[ "$OSTYPE" == "cygwin" ]]; then
 	# POSIX compatibility layer and Linux environment emulation for Windows
-  	$MD5_CHECK="md5sum --check"
+  	MD5_CHECK="md5sum --check"
   elif [[ "$OSTYPE" == "msys" ]]; then
 	# Lightweight shell and GNU utilities compiled for Windows (part of MinGW)
-  	$MD5_CHECK="md5sum --check"
+  	MD5_CHECK="md5sum --check"
   elif [[ "$OSTYPE" == "win32" ]]; then
 	# I'm not sure this can happen.
-  	$MD5_CHECK="md5sum --check"
+  	MD5_CHECK="md5sum --check"
   elif [[ "$OSTYPE" == "freebsd"* ]]; then
 	# FreeBSD
-  	$MD5_CHECK="md5sum --check"
+  	MD5_CHECK="md5sum --check"
   else
     echo "Unable to recognize system. I don't know which md5 check I should use."
     exit 1
