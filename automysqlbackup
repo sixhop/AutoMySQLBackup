@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
@@ -516,7 +516,7 @@ parse_configuration () {
     else
 	    opt=( "${opt[@]}" '--databases' )
     fi
-      
+
 	# if differential backup is active and the specified rotation is smaller than 21 days, set it to 21 days to ensure, that
 	# master backups aren't deleted.
 	if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && (( ${CONFIG_rotation_daily} < 21 )); then
@@ -664,7 +664,7 @@ process_dbs() {
   manifest_file="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/Manifest"
   fname="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/${prefix}${name}_${datetimestamp}${midfix}${extension}"
 
-  (( $CONFIG_debug )) && echo "DEBUG: process_dbs >> Setting manifest file to: ${manifest_file}" 
+  (( $CONFIG_debug )) && echo "DEBUG: process_dbs >> Setting manifest file to: ${manifest_file}"
 
   if (( $multipledbs )); then
 	# multiple databases
@@ -688,7 +688,7 @@ process_dbs() {
 
 	  # -> generate diff file
 	  let "filename_flags=0x00"
-	  
+
 # 	  ## -> get latest differential manifest entry for specified db
 # 	  if get_latest_manifest_entry_for_db "$db" 1; then
 # 		pid="${manifest_entry[2]}"
@@ -781,7 +781,7 @@ process_dbs() {
 		  ;;
 		esac
 		add_manifest_entry "$manifest_file" "$cfname" "$pid" "$db" && parse_manifest "$manifest_file" && cp -al "$cfname" "${manifest_latest_master_entry[0]}" "${CONFIG_backup_dir}"/latest/ && echo "generated $cfname" && return 0 || return 1
-		
+
 	  fi
 	  # <- generate diff filename
 
@@ -818,7 +818,7 @@ process_dbs() {
 	  fi
 
   fi
-  
+
 
   if (( $ret == 0 )); then
 	  echo "Rotating $(( ${rotation}/${rotation_divisor} )) ${rotation_string} backups for ${name}"
@@ -1039,7 +1039,7 @@ check_dependencies () {
 	else
 		[[ "x$CONFIG_mysql_dump_compression" = 'xbzip2' ]] && dependencies=("${dependencies[@]}" 'bzip2' )
 		[[ "x$CONFIG_mysql_dump_compression" = 'xgzip' ]] && dependencies=("${dependencies[@]}" 'gzip' )
-	fi	  
+	fi
 
     if [[ "x$CONFIG_mailcontent" = 'xlog' || "x$CONFIG_mailcontent" = 'xquiet' ]]; then
       dependencies=( "${dependencies[@]}" 'mail' )
@@ -1219,7 +1219,7 @@ parse_manifest() {
 		(( $CONFIG_debug )) && echo "Found multiple entries with the same filename. Removing all but the first-found entry from manifest."
 		# remove all entries with this filename and add a new one based on the values of the item already in the array
 		rm_manifest_entry_by_filename "$1" "${manifest_array[i]}" 1 && add_manifest_entry "$1" "${manifest_array[i]}" "${manifest_array[i+3]}"
-		continue 2	# the original entry, to which we compared, is already in the manifest_array; no matter if this is resolved or not, we don't 
+		continue 2	# the original entry, to which we compared, is already in the manifest_array; no matter if this is resolved or not, we don't
 					# need to add this entry to the manifest_array
 	  elif [[ "x${manifest_array[i+1]}" = "x${line_arr[2]}" ]]; then	# found entry with different filename but same md5sum - file copied and renamed?!
 		if [[ ! -s "${line_arr[0]}" ]]; then # empty file - don't start to compare md5sums ...
@@ -1228,7 +1228,7 @@ parse_manifest() {
 		  (( $CONFIG_debug )) && echo "Found multiple entries with the same md5sum but different filename."
 		  (( $CONFIG_debug )) && echo -e ">> fname_manifest:\t${manifest_array[i]}\t${manifest_array[i+1]}\n>> fname_line:\t\t${line_arr[0]}\t${line_arr[2]}"
 		  if [[ "x${line_arr[6]}" != "x0" ]]; then
-			if [[ "x${manifest_array[i+3]}" = "x${line_arr[6]}" ]]; then	# parent id is the same; TODO inform user of this predicament and suggest solution 
+			if [[ "x${manifest_array[i+3]}" = "x${line_arr[6]}" ]]; then	# parent id is the same; TODO inform user of this predicament and suggest solution
 			  manifest_entries_user_action_required=( "${manifest_entries_user_action_required[@]}" "$1" "${manifest_array[i]}" "The file has an identical copy with the same parent id. If you don't know why it exists, it is safe to remove it." )
 			  continue 2
 			else
@@ -1245,7 +1245,7 @@ parse_manifest() {
       manifest_array[(n-1)*${fields}+i/2]="${line_arr[i]}"
       #echo "manifest array key $((($n-1)*4+$i/2)) with value ${line_arr[i]}"
     done
-    
+
     ((n++))
   done < <(sort -t $'\t' -k"1" "$1")
   (( $CONFIG_debug )) && echo "<<<<<<< # manifest entries: $((${#manifest_array[@]}/$fields))"
@@ -1387,7 +1387,7 @@ get_latest_manifest_entry_for_db() {
 }
 
 # @params:	manifest_file	filename/md5sum/id/rel_id	[1(=don't parse manifest after finished)]
-# if second parameters 
+# if second parameters
 #
 #	lock manifest -> use awk, print all lines that don't have second parameter at the appropriate field -> unlock manifest
 #	param3=0 -> parse manifest
@@ -1489,7 +1489,7 @@ extended_select() {
 			echo -e "$i) [ ]\t${list[i]}"
 		  fi
 		done
-		
+
 		echo -e "$i)\tDONE"
 		done_id=$i
 
@@ -1640,7 +1640,7 @@ extended_select() {
 	for i in "${selection[@]}"; do
 	  [[ "x$i" != "x$done_id" ]] && { extended_select_return=("${extended_select_return[@]}" "${list[i]}"); extended_select_return_id=("${extended_select_return_id[@]}" "$i"); }
 	done
-	
+
 }
 
 # END _functions
@@ -1666,7 +1666,7 @@ method_backup () {
 
 	# load mysql commands
 	mysql_commands
-	
+
 	(( $CONFIG_dryrun )) && {
 	  echo "NOTE: We are dry-running. That means, that the script just shows you what it would do, if it were operating normally."
 	  echo "THE PRINTED COMMANDS CAN'T BE COPIED AND EXECUTED IF THERE ARE SPECIAL CHARACTERS, SPACES, ETC. IN THERE THAT WOULD NEED TO BE PROPERLY QUOTED IN ORDER TO WORK. THESE WERE CORRECTLY QUOTED FOR THE OUTPUT COMMAND, BUT CAN'T BE SEEN NOW."
@@ -1675,7 +1675,7 @@ method_backup () {
 
 	export LC_ALL=C
 	PROGNAME=`basename $0`
-	PATH=${PATH}:/usr/local/bin:/usr/bin:/bin:/usr/local/mysql/bin 
+	PATH=${PATH}:/usr/local/bin:/usr/bin:/bin:/usr/local/mysql/bin
 	version=3.0
 	fields=5 # manifest fields
 
@@ -1721,7 +1721,7 @@ method_backup () {
 	echo "======================================================================"
 	echo "AutoMySQLBackup version ${version}"
 	echo "http://sourceforge.net/projects/automysqlbackup/"
-	echo 
+	echo
 	echo "Backup of Database Server - ${CONFIG_mysql_dump_host_friendly:-$CONFIG_mysql_dump_host}"
 	( IFS=,; echo "Databases - ${CONFIG_db_names[*]}" )
 	( IFS=,; echo "Databases (monthly) - ${CONFIG_db_month_names[*]}" )
@@ -1746,7 +1746,7 @@ method_backup () {
 		echo "Backup local files. Doing this weekly on CONFIG_do_weekly."
 		echo
 		backup_local_files "${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar"
-		tmp_flags=$?; var=; 
+		tmp_flags=$?; var=;
 		if (( $? == 0 )); then
 		  echo "success!"
 		  backupfiles=( "${backupfiles[@]}" "${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar" )
@@ -1820,7 +1820,7 @@ method_backup () {
 		echo
 		echo "======================================================================"
 		echo
-	  
+
 	fi
 	# <- dump full schema
 
@@ -1884,7 +1884,7 @@ method_backup () {
 		echo
 		echo "======================================================================"
 		echo
-	  
+
 	fi
 	# <- dump status
 
@@ -2036,10 +2036,10 @@ method_list_manifest_entries () {
 
 	# load mysql commands
 	mysql_commands
-	
+
 	export LC_ALL=C
 	PROGNAME=`basename $0`
-	PATH=${PATH}:/usr/local/bin:/usr/bin:/bin:/usr/local/mysql/bin 
+	PATH=${PATH}:/usr/local/bin:/usr/bin:/bin:/usr/local/mysql/bin
 	version=3.0
 	fields=5 # manifest fields
 
