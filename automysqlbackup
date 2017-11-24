@@ -1153,7 +1153,7 @@ toggle_manifest() {
 check_manifest_entry() {
   local entry_md5sum
   [[ ! -e "${manifest_entry_to_check[0]}" ]] && { rm_manifest_entry_by_filename "${manifest_entry_to_check[0]}" 1 && return 1 || return 2; }
-  entry_md5sum="$(md5sum "${manifest_entry_to_check[0]}" | awk '{print $1}')"
+  entry_md5sum="$(openssl md5 "${manifest_entry_to_check[0]}" | awk '{print $2}')"
   if [[ "${entry_md5sum}" != "${manifest_entry_to_check[1]}" ]]; then
 	printf 'g/%s/s//%s/g\nw\nq' "${manifest_entry_to_check[1]}" "${entry_md5sum}" | ed -s "$1"
   else
@@ -1432,7 +1432,7 @@ add_manifest_entry() {
   id="${filename%.@(diff|sql)*}"
   id="${id:(-8):8}"
   #id="$(echo $filename | sed -re 's/.*_[0-9]{2}h[0-9]{2}m_([^\.]*)\..*/\1/')"
-  md5sum="$(md5sum "$filename" | awk '{print $1}')"
+  md5sum="$(openssl md5 "$filename" | awk '{print $2}')"
   if [[ "x$parent_id" = 'x' ]]; then
     echo -e "${filename}\tmd5sum\t${md5sum}\tdiff_id\t${id}\trel_id\t0\tdb\t${db}" >> "$1"
   else
