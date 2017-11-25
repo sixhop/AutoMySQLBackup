@@ -1990,7 +1990,7 @@ method_backup () {
 	# -> finished information
 	echo "Total disk space used for backup storage..."
 	echo "Size - Location"
-	echo `du -hs --si "${CONFIG_backup_dir}"`
+	echo `du -hs "${CONFIG_backup_dir}"`
 	echo
 	echo "======================================================================"
 	# <- finished information
