@@ -101,7 +101,7 @@ load_default_config() {
 
 mysql_commands() {
   VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
-  NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
+  NODOT_VER=`echo $VERSION | sed -E 's/\.//g'`
   if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
     export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
     export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
@@ -263,7 +263,7 @@ gzip_compression() {
 # @return:	(none)
 # @deps:	(none)
 remove_datetimeinfo () {
-  mv "$1" "$(echo "$1" | sed -re 's/_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}h[0-9]{2}m_(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December|[0-9]{1,2})//g')"
+  mv "$1" "$(echo "$1" | sed -Ee 's/_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}h[0-9]{2}m_(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December|[0-9]{1,2})//g')"
 }
 export -f remove_datetimeinfo
 
@@ -1431,7 +1431,7 @@ add_manifest_entry() {
   lock_manifest "$1" || return 1
   id="${filename%.@(diff|sql)*}"
   id="${id:(-8):8}"
-  #id="$(echo $filename | sed -re 's/.*_[0-9]{2}h[0-9]{2}m_([^\.]*)\..*/\1/')"
+  #id="$(echo $filename | sed -Ee 's/.*_[0-9]{2}h[0-9]{2}m_([^\.]*)\..*/\1/')"
   md5sum="$(openssl md5 "$filename" | awk '{print $2}')"
   if [[ "x$parent_id" = 'x' ]]; then
     echo -e "${filename}\tmd5sum\t${md5sum}\tdiff_id\t${id}\trel_id\t0\tdb\t${db}" >> "$1"
