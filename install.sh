@@ -409,7 +409,7 @@ parse_config_file () {
 echo "### Checking archive files for existence, readability and integrity."
 echo
 
-precheck_files=( automysqlbackup 31e3b0fe937af7ba3c4015543cd2a848
+precheck_files=( automysqlbackup 8d6f85929aa9c3525a12d5c3e4491b75
 automysqlbackup.conf b70bc8a814400cf41b8e6228d7bbc963
 README b17740fcd3a5f8579b907a42249a83cd
 LICENSE 39bba7d2cf0ba1036f2a6e2be52fe3f0
@@ -425,29 +425,9 @@ while [ $i -lt $n ]; do
     printf "failed\n"
     exit 1
   fi
-  if [[ "$OSTYPE" == "linux-gnu" ]]; then
-	# Linux
-  	MD5_CHECK="md5sum --check"
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
-	# Mac OSX
-  	MD5_CHECK="md5 -r"
-  elif [[ "$OSTYPE" == "cygwin" ]]; then
-	# POSIX compatibility layer and Linux environment emulation for Windows
-  	MD5_CHECK="md5sum --check"
-  elif [[ "$OSTYPE" == "msys" ]]; then
-	# Lightweight shell and GNU utilities compiled for Windows (part of MinGW)
-  	MD5_CHECK="md5sum --check"
-  elif [[ "$OSTYPE" == "win32" ]]; then
-	# I'm not sure this can happen.
-  	MD5_CHECK="md5sum --check"
-  elif [[ "$OSTYPE" == "freebsd"* ]]; then
-	# FreeBSD
-  	MD5_CHECK="md5sum --check"
-  else
-    echo "Unable to recognize system. I don't know which md5 check I should use."
-    exit 1
-  fi
-  if echo "${precheck_files[$((2*$i+1))]}  ${precheck_files[$((2*$i))]}" | $MD5_CHECK >/dev/null 2>&1; then
+  md5_sum=$(openssl md5 "${precheck_files[$((2*$i))]}")
+  md5_sum=${md5_sum##*= }
+  if [[ "${precheck_files[$((2*$i+1))]}" = "${md5_sum}" ]]; then
     printf "md5sum okay :)\n"
   else
     printf "md5sum failed :(\n"
