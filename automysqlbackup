@@ -65,7 +65,7 @@ load_default_config() {
   CONFIG_rotation_weekly=35
   CONFIG_rotation_monthly=150
   CONFIG_mysql_dump_port=3306
-  CONFIG_mysql_dump_usessl='yes'
+  CONFIG_mysql_dump_usessl='no'
   CONFIG_mysql_dump_username='root'
   CONFIG_mysql_dump_password=''
   CONFIG_mysql_dump_host='localhost'
