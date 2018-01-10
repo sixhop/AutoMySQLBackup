@@ -84,6 +84,7 @@ load_default_config() {
   CONFIG_mysql_dump_dbstatus='yes'
   CONFIG_mysql_dump_differential='no'
   CONFIG_mysql_dump_login_path='automysqldump'
+  CONFIG_mysql_dump_login_path_file=''
   CONFIG_mysql_dump_encrypted_login='no'
   CONFIG_backup_local_files=()
   CONFIG_db_names=()
@@ -106,6 +107,9 @@ mysql_commands() {
     export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
     export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
     export MYSQL="mysql --login-path=$CONFIG_mysql_dump_login_path"
+    if [ -n "${CONFIG_mysql_dump_login_path_file}" ]; then
+      export MYSQL_TEST_LOGIN_FILE=$CONFIG_mysql_dump_login_path_file
+    fi
   else
     export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
     export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
