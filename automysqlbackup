@@ -165,7 +165,7 @@ mail_cleanup () {
 							  'bunzip2 <mail_attachment_2011-08-13_13h15m.tar.bz2 | pax -rv' to extract the content."
 					  for ((j=0;j<"${#files[@]}";j++)); do
 						if [[ "x$CONFIG_mail_use_uuencoded_attachments" = "xyes" ]]; then
-						  if (( $j = 0 )); then
+						  if (( $j == 0 )); then
 							cat "$log_file" > "$temp"
 							uuencode "$j" "$j" >> "$temp"
 						  else
