@@ -100,9 +100,18 @@ load_default_config() {
   CONFIG_encrypt_password='password0123'
 }
 
+# OS dependent options (showstoppers on MacOS)
+  if [[ $OSTYPE == darwin* ]]; then
+    OS_sed_option='-E'
+    OS_du_extra_option=''
+  else
+    OS_sed_option='-r'
+    OS_du_extra_option='--si'
+  fi
+
 mysql_commands() {
   VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
-  NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
+  NODOT_VER=`echo $VERSION | sed $OS_sed_option 's/\.//g'`
   if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
     export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
     export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
@@ -1994,7 +2003,7 @@ method_backup () {
 	# -> finished information
 	echo "Total disk space used for backup storage..."
 	echo "Size - Location"
-	echo `du -hs --si "${CONFIG_backup_dir}"`
+	echo `du -hs $OS_du_extra_option "${CONFIG_backup_dir}"`
 	echo
 	echo "======================================================================"
 	# <- finished information
