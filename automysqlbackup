@@ -333,7 +333,7 @@ files_postprocessing () {
 		if (( $CONFIG_dryrun )); then
 		  printf 'dry-running: cp -al %s.enc %s/latest/\n' "${1}" "${CONFIG_backup_dir}"
 		else
-		  cp -al "${1}${suffix}.enc" "${CONFIG_backup_dir}"/latest/
+		  cp -al "${1}.enc" "${CONFIG_backup_dir}"/latest/
 		fi
 	  else
 		if (( $CONFIG_dryrun )); then
