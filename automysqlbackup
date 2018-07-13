@@ -72,6 +72,7 @@ load_default_config() {
   CONFIG_mysql_dump_host_friendly=''
   CONFIG_mysql_dump_socket=''
   CONFIG_mysql_dump_create_database='no'
+  CONFIG_mysql_dump_add_drop_database='no'
   CONFIG_mysql_dump_use_separate_dirs='yes'
   CONFIG_mysql_dump_compression='gzip'
   CONFIG_mysql_dump_commcomp='no'
@@ -528,6 +529,10 @@ parse_configuration () {
 	    fi
     else
 	    opt=( "${opt[@]}" '--databases' )
+    fi
+
+    if [[ "${CONFIG_mysql_dump_add_drop_database}" = "yes" ]]; then
+      opt=( "${opt[@]}" '--add-drop-database' )
     fi
       
 	# if differential backup is active and the specified rotation is smaller than 21 days, set it to 21 days to ensure, that
