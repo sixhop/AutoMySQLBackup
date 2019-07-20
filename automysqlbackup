@@ -100,18 +100,9 @@ load_default_config() {
   CONFIG_encrypt_password='password0123'
 }
 
-# OS dependent options (showstoppers on MacOS)
-  if [[ $OSTYPE == darwin* ]]; then
-    OS_sed_option='-E'
-    OS_du_extra_option=''
-  else
-    OS_sed_option='-r'
-    OS_du_extra_option='--si'
-  fi
-
 mysql_commands() {
   VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+"`
-  NODOT_VER=`echo $VERSION | sed $OS_sed_option 's/\.//g'`
+  NODOT_VER=`echo $VERSION | sed -r 's/\.//g'`
   if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
     export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
     export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
@@ -814,6 +805,8 @@ process_dbs() {
 		esac
 		return 0;
 	  else
+		max_execution_time=`$MYSQL -B --skip-column-names -e "show variables like '%max_execution_time%';" | awk '{print $2}'`
+		$MYSQL -e "SET GLOBAL max_execution_time=0;"
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
 		  $MYSQLDUMP "${opt[@]}" "$@" | gzip_compression > "${cfname}"
@@ -828,6 +821,7 @@ process_dbs() {
 		  ret=$?
 		  ;;
 		esac
+		$MYSQL -e "SET GLOBAL max_execution_time=$max_execution_time;"
 	  fi
 
   fi
@@ -2003,7 +1997,7 @@ method_backup () {
 	# -> finished information
 	echo "Total disk space used for backup storage..."
 	echo "Size - Location"
-	echo `du -hs $OS_du_extra_option "${CONFIG_backup_dir}"`
+	echo `du -hs --si "${CONFIG_backup_dir}"`
 	echo
 	echo "======================================================================"
 	# <- finished information
