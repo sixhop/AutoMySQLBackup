@@ -92,6 +92,7 @@ load_default_config() {
   CONFIG_db_names=()
   CONFIG_db_month_names=()
   CONFIG_db_exclude=( 'information_schema' )
+  CONFIG_db_exclude_pattern=()
   CONFIG_table_exclude=()
   CONFIG_mailcontent='stdout'
   CONFIG_mail_maxattsize=4000
@@ -1181,6 +1182,11 @@ parse_databases() {
 	for i in "${!alldbnames[@]}"; do if [[ "x${alldbnames[$i]}" = "x${exclude}" ]]; then unset 'alldbnames[i]'; fi; done
   done
   # <- remove excluded dbs from list
+
+  # -> remove excluded patterns from list
+  for pattern in "${CONFIG_db_exclude_pattern[@]}"; do
+    for i in "${!alldbnames[@]}"; do if [[ "x${alldbnames[$i]/${pattern}/}" != "x${alldbnames[$i]}" ]]; then unset 'alldbnames[i]'; fi; done
+  done
 
   # check for empty array lists and copy all dbs
   ((! ${#CONFIG_db_names[@]}))	&& CONFIG_db_names=( "${alldbnames[@]}" )
