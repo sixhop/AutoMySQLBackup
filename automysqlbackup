@@ -21,6 +21,7 @@ let "filename_flag_encrypted=0x01"
 let "filename_flag_gz=0x02"
 let "filename_flag_bz2=0x04"
 let "filename_flag_diff=0x08"
+let "filename_flag_xz=0x10"
 # END _flags
 
 # BEGIN _errors_notifications
@@ -262,6 +263,22 @@ gzip_compression() {
   fi
 }
 
+# @info:	xz compression
+xz_compression() {
+  var=("$@")
+  re='^[0-9]*$'
+  if [[ "x$CONFIG_multicore" = 'xyes' ]]; then
+	  if [[ "x$CONFIG_multicore_threads" != 'xauto' ]] && [[ "x$CONFIG_multicore_threads" =~ $re ]]; then
+		  var=( "-T ${CONFIG_multicore_threads}" "${var[@]}" )
+          else
+		  var=( "-T 0" "${var[@]}" )
+	  fi
+	  xz "${var[@]}"
+  else
+	  xz "${var[@]}"
+  fi
+}
+
 # @info:	Remove date and time information from filename by renaming it.
 # @args:	filename
 # @return:	(none)
@@ -424,6 +441,9 @@ backup_local_files () {
 	  'bzip2')
 	    echo "tar -cjvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
 	    ;;
+	  'xz')
+	    echo "tar -cJvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
+	    ;;
 	  *)
 	    echo "tar -cvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
 	    ;;
@@ -438,6 +458,10 @@ backup_local_files () {
 	    ;;
 	  'bzip2')
 	    tar -cjvf "${1}${suffix}" "${CONFIG_backup_local_files[@]}";
+	    return $?
+	    ;;
+	  'xz')
+	    tar -cJvf "${1}${suffix}" "${CONFIG_backup_local_files[@]}";
 	    return $?
 	    ;;
 	  *)
@@ -531,6 +555,7 @@ parse_configuration () {
     case "${CONFIG_mysql_dump_compression}" in
       'gzip')	suffix='.gz';;
       'bzip2')	suffix='.bz2';;
+      'xz')	suffix='.xz';;
       *)		suffix='';;
     esac
     # <- determine suffix
@@ -569,6 +594,9 @@ dbstatus() {
 	'bzip2')
 	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | bzip2_compression > ${1}${suffix}";
 	  ;;
+	'xz')
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | xz_compression > ${1}${suffix}";
+	  ;;
 	*)
 	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} > ${1}${suffix}";
 	  ;;
@@ -582,6 +610,10 @@ dbstatus() {
 	  ;;
 	'bzip2')
 	  $MYSQLSHOW "${opt_dbstatus[@]}" | bzip2_compression > "${1}${suffix}";
+	  return $?
+	  ;;
+	'xz')
+	  $MYSQLSHOW "${opt_dbstatus[@]}" | xz_compression > "${1}${suffix}";
 	  return $?
 	  ;;
 	*)
@@ -605,6 +637,9 @@ fullschema () {
 	'bzip2')
 	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | bzip2_compression > ${1}${suffix}";
 	  ;;
+	'xz')
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | xz_compression > ${1}${suffix}";
+	  ;;
 	*)
 	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} > ${1}${suffix}";
 	  ;;
@@ -618,6 +653,10 @@ fullschema () {
 	  ;;
 	'bzip2')
 	  $MYSQLDUMP "${opt_fullschema[@]}" | bzip2_compression > "${1}${suffix}";
+	  return $?
+	  ;;
+	'xz')
+	  $MYSQLDUMP "${opt_fullschema[@]}" | xz_compression > "${1}${suffix}";
 	  return $?
 	  ;;
 	*)
@@ -696,12 +735,13 @@ process_dbs() {
 # 	  ## -> get latest differential manifest entry for specified db
 # 	  if get_latest_manifest_entry_for_db "$db" 1; then
 # 		pid="${manifest_entry[2]}"
-# 		# filename format: prefix_db_YYYY-MM-DD_HHhMMm_[A-Za-z0-9]{8}(.sql|.diff)(.gz|.bz2)(.enc)
+# 		# filename format: prefix_db_YYYY-MM-DD_HHhMMm_[A-Za-z0-9]{8}(.sql|.diff)(.gz|.bz2|.xz)(.enc)
 # 		FileStub=${manifest_entry[0]%.@(sql|diff)*}
 # 		FileExt=${manifest_entry[0]#"$FileStub"}
 # 		re=".*\.enc.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_encrypted"
 # 		re=".*\.gz.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_gz"
 # 		re=".*\.bz2.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_bz2"
+# 		re=".*\.xz.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_xz"
 # 		re=".*\.diff.*";	[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_diff"
 # 		manifest_latest_diff_entry=("${manifest_entry[@]}")
 # 	  else	# no entries in manifest
@@ -713,12 +753,13 @@ process_dbs() {
 	  # Create a differential backup if a master entry in the manifest exists, it isn't the day we do weekly master backups or the master file we fetched is already from today.
 	  if get_latest_manifest_entry_for_db "$db" 0 && ( (( ${date_dayno_of_week} != ${CONFIG_do_weekly} )) || [[ "${manifest_entry[0]}" = *_$(date +%Y-%m-%d)_* ]] ); then
 		pid="${manifest_entry[2]}"
-		# filename format: prefix_db_YYYY-MM-DD_HHhMMm_[A-Za-z0-9]{8}(.sql|.diff)(.gz|.bz2)(.enc)
+		# filename format: prefix_db_YYYY-MM-DD_HHhMMm_[A-Za-z0-9]{8}(.sql|.diff)(.gz|.bz2|xz)(.enc)
 		FileStub="${manifest_entry[0]%.@(sql|diff)*}"
 		FileExt="${manifest_entry[0]#"$FileStub"}"
 		re=".*\.enc.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_encrypted"
 		re=".*\.gz.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_gz"
 		re=".*\.bz2.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_bz2"
+		re=".*\.xz.*";		[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_xz"
 		re=".*\.diff.*";	[[ "$FileExt" =~ $re ]] && let "filename_flags|=$filename_flag_diff"
 		manifest_latest_master_entry=("${manifest_entry[@]}")
 	  else	# no entries in manifest
@@ -744,6 +785,9 @@ process_dbs() {
 		'bzip2')
 		  $MYSQLDUMP "${opt[@]}" "$@" | bzip2_compression > "$cfname";
 		  ;;
+		'xz')
+		  $MYSQLDUMP "${opt[@]}" "$@" | xz_compression > "$cfname";
+		  ;;
 		*)
 		  $MYSQLDUMP "${opt[@]}" "$@" > "$cfname";
 		  ;;
@@ -761,6 +805,8 @@ process_dbs() {
 			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
 			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
+		  elif (( $filename_flags & $filename_flag_xz )); then
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
 		  else
 			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
 		  fi
@@ -770,8 +816,21 @@ process_dbs() {
 			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
 			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+		  elif (( $filename_flags & $filename_flag_xz )); then
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  else
 			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+		  fi
+		  ;;
+		'xz')
+		  if (( $filename_flags & $filename_flag_gz )); then
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+		  elif (( $filename_flags & $filename_flag_bz2 )); then
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+		  elif (( $filename_flags & $filename_flag_xz )); then
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+		  else
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
 		  fi
 		  ;;
 		*)
@@ -779,6 +838,8 @@ process_dbs() {
 			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
 			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
+		  elif (( $filename_flags & $filename_flag_xz )); then
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
 		  else
 			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
 		  fi
@@ -799,6 +860,9 @@ process_dbs() {
 		'bzip2')
 		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | bzip2_compression > ${cfname}"
 		  ;;
+		'xz')
+		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | xz_compression > ${cfname}"
+		  ;;
 		*)
 		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ > ${cfname}"
 		  ;;
@@ -814,6 +878,10 @@ process_dbs() {
 		  ;;
 		'bzip2')
 		  $MYSQLDUMP "${opt[@]}" "$@" | bzip2_compression > "${cfname}"
+		  ret=$?
+		  ;;
+		'xz')
+		  $MYSQLDUMP "${opt[@]}" "$@" | xz_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		*)
@@ -1041,11 +1109,19 @@ check_dependencies () {
 		    CONFIG_multicore='no' # turn off multicore support, since the program isn't there
 		    echo "WARNING: Turning off multicore support, since pigz isn't there."
 		  fi
+		elif [[ "x$CONFIG_mysql_dump_compression" = 'xxz' ]]; then
+		  if type xz &>/dev/null; then
+		    echo "xz ... found."
+		  else
+		    CONFIG_multicore='no' # turn off multicore support, since the program isn't there
+		    echo "WARNING: Turning off multicore support, since xz isn't there."
+		  fi
 		fi
 
 	else
 		[[ "x$CONFIG_mysql_dump_compression" = 'xbzip2' ]] && dependencies=("${dependencies[@]}" 'bzip2' )
 		[[ "x$CONFIG_mysql_dump_compression" = 'xgzip' ]] && dependencies=("${dependencies[@]}" 'gzip' )
+		[[ "x$CONFIG_mysql_dump_compression" = 'xxz' ]] && dependencies=("${dependencies[@]}" 'xz' )
 	fi	  
 
     if [[ "x$CONFIG_mailcontent" = 'xlog' || "x$CONFIG_mailcontent" = 'xquiet' ]]; then
@@ -2129,6 +2205,7 @@ method_list_manifest_entries () {
 				  re=".*\.enc.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_encrypted"
 				  re=".*\.gz.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_gz"
 				  re=".*\.bz2.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_bz2"
+				  re=".*\.xz.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_xz"
 				  re=".*\.diff.*";	[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_diff"
 				  if (( $master_flags & $filename_flag_gz )); then
 					declare -a testarray=("${to_rm[@]}")
@@ -2144,6 +2221,13 @@ method_list_manifest_entries () {
 					  to_rm=("${to_rm[@]}" "${master%.bz2}")
 					fi
 					master="${master%.bz2}"
+				  elif (( $master_flags & $filename_flag_xz )); then
+					declare -a testarray=("${to_rm[@]}")
+					if ! in_array "${master%.xz}"; then
+					  xz_compression -dc "$master" > "${master%.xz}"
+					  to_rm=("${to_rm[@]}" "${master%.xz}")
+					fi
+					master="${master%.xz}"
 				  else
 					:
 				  fi
@@ -2184,12 +2268,14 @@ method_diff_to_full() {
 	re=".*\.enc.*";		[[ "$FileExt" =~ $re ]] && let "diff_flags|=$filename_flag_encrypted"
 	re=".*\.gz.*";		[[ "$FileExt" =~ $re ]] && let "diff_flags|=$filename_flag_gz"
 	re=".*\.bz2.*";		[[ "$FileExt" =~ $re ]] && let "diff_flags|=$filename_flag_bz2"
+	re=".*\.xz.*";		[[ "$FileExt" =~ $re ]] && let "diff_flags|=$filename_flag_xz"
 	re=".*\.diff.*";	[[ "$FileExt" =~ $re ]] && let "diff_flags|=$filename_flag_diff"
 	FileStub="${master%.@(sql|master)*}"
 	FileExt="${master#"$FileStub"}"
 	re=".*\.enc.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_encrypted"
 	re=".*\.gz.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_gz"
 	re=".*\.bz2.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_bz2"
+	re=".*\.xz.*";		[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_xz"
 	re=".*\.diff.*";	[[ "$FileExt" =~ $re ]] && let "master_flags|=$filename_flag_diff"
 
 	# TODO: Differential backup with encryption is not yet implemented!
@@ -2209,6 +2295,10 @@ method_diff_to_full() {
 	  bzip2_compression -dc "$diff" > "${diff%.bz2}"
 	  to_rm=("${to_rm[@]}" "${diff%.bz2}")
 	  diff="${diff%.bz2}"
+	elif (( $diff_flags & $filename_flag_xz )); then
+	  xz_compression -dc "$diff" > "${diff%.xz}"
+	  to_rm=("${to_rm[@]}" "${diff%.xz}")
+	  diff="${diff%.xz}"
 	else
 	  :
 	fi
@@ -2221,6 +2311,10 @@ method_diff_to_full() {
 	  bzip2_compression -dc "$master" > "${master%.bz2}"
 	  to_rm=("${to_rm[@]}" "${master%.bz2}")
 	  master="${master%.bz2}"
+	elif (( $master_flags & $filename_flag_bz2 )); then
+	  xz_compression -dc "$master" > "${master%.xz}"
+	  to_rm=("${to_rm[@]}" "${master%.xz}")
+	  master="${master%.xz}"
 	else
 	  :
 	fi
