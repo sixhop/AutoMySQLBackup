@@ -20,8 +20,10 @@ shopt -s extglob
 # Check for sed option if osx is used
 if [ "`uname -s`" = "Darwin" ]; then
     sed_Regex='E'
+	du_opts='-hs'
 else
     sed_Regex='r'
+	du_opts='-hs --si'
 fi
 
 # BEGIN _flags
@@ -2092,7 +2094,9 @@ method_backup () {
 	# -> finished information
 	echo "Total disk space used for backup storage..."
 	echo "Size - Location"
-	echo `du -hs --si "${CONFIG_backup_dir}"`
+	
+	echo `du ${du_opts} "${CONFIG_backup_dir}"`
+	
 	echo
 	echo "======================================================================"
 	# <- finished information
