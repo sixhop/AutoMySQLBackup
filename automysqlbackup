@@ -25,7 +25,6 @@ else
     sed_Regex='r'
 	du_opts='-hs --si'
 fi
-
 # BEGIN _flags
 let "filename_flag_encrypted=0x01"
 let "filename_flag_gz=0x02"
