@@ -2,6 +2,22 @@
 # Change Log
 #=====================================================================
 #
+# version 3.0.7 - (2018-05-02)
+#     - Small changes for MacOS
+# version 3.0.6 - (2018-01-10)
+#     - Fix the mysql login-configuration file cannot be located in a cronjob
+# version 3.0.5 - (2017-12-08)
+#     - Changed usessl to no per default
+# version 3.0.4 - (2017-10-27)
+#     - Adjusted md5sums in install.sh
+# version 3.0.3 - (2017-09-27)
+#     - Configuration fix
+# version 3.0.2 - (2017-01-20)
+#     - Add secure connection config support to install.sh
+# version 3.0.1 - (2016-10-05)
+#     - Forked from Sourceforge
+#     - Supports MySQL 5.6 and MySQL 5.7
+#     - Updated README for login path support
 # version 3.0_rc4 - (2011-11-24)
 #     - Removing mkfifo commands, thereby improving portability.
 #     - Fixing not working table exclude feature for wildcards.
