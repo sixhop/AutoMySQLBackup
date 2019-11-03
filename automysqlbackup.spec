@@ -3,23 +3,23 @@
 %global gittag 3.0.7
 %global projname AutoMySQLBackup
 
-Name:		   automysqlbackup
-Version:	 3.0.7
-Release:	 1%{?dist}
-Summary:	 MySQL/MariaDB backup script
-Group:		 Applications/Databases
-License:	 GPLv2+
+Name:      automysqlbackup
+Version:   3.0.7
+Release:   1%{?dist}
+Summary:   MySQL/MariaDB backup script
+Group:     Applications/Databases
+License:   GPLv2+
 URL:       https://github.com/sixhop/%{projname}
 %undefine  _disable_source_fetch
-Source0:	 https://github.com/sixhop/%{projname}/archive/%{gittag}/%{projname}-%{version}.tar.gz
+Source0:   https://github.com/sixhop/%{projname}/archive/%{gittag}/%{projname}-%{version}.tar.gz
 %define    SHA256SUM0 8641f37ed453c880f541fe729e7b927db62b8d8a81c0d693efb8dd9dece09ee7
 BuildArch: noarch
-Requires:	 bash
-Requires:	 bzip2
-Requires:	 gzip
-Requires:	 diffutils
-Requires:	 openssl
-Requires:	 mysql
+Requires:  bash
+Requires:  bzip2
+Requires:  gzip
+Requires:  diffutils
+Requires:  openssl
+Requires:  mysql
 
 %description
 MySQL/MariaDB backup wrapper script for mysqldump, with support for
