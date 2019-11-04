@@ -37,7 +37,14 @@ mysql_config_editor set --login-path=automysqldump --host=localhost --user=root 
 
 After that command give your mysql root password and you're done. If you want to do your backup with another user, simply change the username.
 
+MariaDB
+-------
+MariaDB does not ship `mysql_config_editor` with their software. The blog post [MySQL 5.6: Security through Complacency?](https://mariadb.com/resources/blog/mysql-56-security-through-complacency) argues that `mysql_config_editor` is no more secure than a plain text file since the credentials can be printed with a modified version of `mysql_config_editor`.
 
+To use backup MariaDB databases, specify `CONFIG_mysql_dump_username` and `CONFIG_mysql_dump_password` like you would with the SourceForge version.
+
+Get Involved
+------------
 Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :) (English or German)
 
 For more Information check out [Webagentur sixhop.net](https://www.sixhop.net/webseiten-erstellung/).
