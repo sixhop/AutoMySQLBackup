@@ -805,8 +805,10 @@ process_dbs() {
 		esac
 		return 0;
 	  else
-		max_execution_time=`$MYSQL -B --skip-column-names -e "show variables like '%max_execution_time%';" | awk '{print $2}'`
-		$MYSQL -e "SET GLOBAL max_execution_time=0;"
+        if [ $NODOT_VER = "57" ]; then
+          max_execution_time=`$MYSQL -B --skip-column-names -e "show variables like '%max_statement_time%';" | awk '{print $2}'`
+          $MYSQL -e "SET GLOBAL max_statement_time=0;"
+        fi
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
 		  $MYSQLDUMP "${opt[@]}" "$@" | gzip_compression > "${cfname}"
@@ -821,7 +823,9 @@ process_dbs() {
 		  ret=$?
 		  ;;
 		esac
-		$MYSQL -e "SET GLOBAL max_execution_time=$max_execution_time;"
+        if [ $NODOT_VER = "57" ]; then
+		  $MYSQL -e "SET GLOBAL max_statement_time=$max_execution_time;"
+        fi
 	  fi
 
   fi
