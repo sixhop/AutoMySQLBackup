@@ -328,9 +328,9 @@ files_postprocessing () {
 	# -> CONFIG_encrypt
 	[[ "${CONFIG_encrypt}" = "yes" && "${CONFIG_encrypt_password}" ]] && {
 	  if (( $CONFIG_dryrun )); then
-	    printf 'dry-running: openssl enc -aes-256-cbc -e -in %s -out %s.enc -pass pass:%s\n' ${1} ${1} "${CONFIG_encrypt_password}"
+	    printf 'dry-running: openssl enc -aes-256-cbc -pbkdf2 -iter 1000 -e -in %s -out %s.enc -pass pass:%s\n' ${1} ${1} "${CONFIG_encrypt_password}"
 	  else
-	    openssl enc -aes-256-cbc -e -in ${1} -out ${1}.enc -pass pass:"${CONFIG_encrypt_password}"
+	    openssl enc -aes-256-cbc -pbkdf2 -iter 1000 -e -in ${1} -out ${1}.enc -pass pass:"${CONFIG_encrypt_password}"
 	    if (( $? == 0 )); then
 		  if rm ${1} 2>&1; then
 		    echo "Successfully encrypted archive as ${1}.enc"
@@ -885,8 +885,10 @@ process_dbs() {
 		return 0;
 	  else
         if [ $NODOT_VER = "57" ]; then
-          max_execution_time=`$MYSQL -B --skip-column-names -e "show variables like '%max_statement_time%';" | awk '{print $2}'`
+          max_execution_time=`$MYSQL -B --skip-column-names -e "show variables like '%max_execution_time%';" | awk '{print $2}'`
+          max_statement_time=`$MYSQL -B --skip-column-names -e "show variables like '%max_statement_time%';" | awk '{print $2}'`
           $MYSQL -e "SET GLOBAL max_statement_time=0;"
+          $MYSQL -e "SET GLOBAL max_execution_time=0;"
         fi
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
@@ -907,7 +909,8 @@ process_dbs() {
 		  ;;
 		esac
         if [ $NODOT_VER = "57" ]; then
-		  $MYSQL -e "SET GLOBAL max_statement_time=$max_execution_time;"
+		  $MYSQL -e "SET GLOBAL max_execution_time=$max_execution_time;"
+		  $MYSQL -e "SET GLOBAL max_statement_time=$max_statement_time;"
         fi
 	  fi
 
