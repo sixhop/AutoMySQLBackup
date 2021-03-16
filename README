@@ -55,9 +55,9 @@ Automysqlbackup can be run a number of ways, you can choose which is best for yo
 
 /usr/local/bin/automysqlbackup /etc/automysqlbackup/myserver.conf
 
-chown root.root /var/backup/db* -R
-find /var/backup/db* -type f -exec chmod 400 {} \;
-find /var/backup/db* -type d -exec chmod 700 {} \;
+chown root.root /var/backups/db* -R
+find /var/backups/db* -type f -exec chmod 400 {} \;
+find /var/backups/db* -type d -exec chmod 700 {} \;
 
 #~~~~~ Copy To Above Here ~~~~
 
@@ -135,7 +135,7 @@ Please take a look at the supplied "automysqlbackup.conf" for information about 
 
 Default configuration
 CONFIG_configfile="/etc/automysqlbackup/automysqlbackup.conf"
-CONFIG_backup_dir='/var/backup/db'
+CONFIG_backup_dir='/var/backups/db'
 CONFIG_do_monthly="01"
 CONFIG_do_weekly="5"
 CONFIG_rotation_daily=6

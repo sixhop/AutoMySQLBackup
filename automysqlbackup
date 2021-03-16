@@ -66,7 +66,7 @@ let "N_backup_local_nofiles=0x20"
 # @deps:	(none)
 load_default_config() {
   CONFIG_configfile="/etc/automysqlbackup/automysqlbackup.conf"
-  CONFIG_backup_dir='/var/backup/db'
+  CONFIG_backup_dir='/var/backups/db'
   CONFIG_multicore='yes'
   CONFIG_multicore_threads=2
   CONFIG_do_monthly="01"
@@ -2162,7 +2162,7 @@ method_list_manifest_entries () {
 	# BEGIN __MAIN
 	unset manifest_files manifest_files_db i db
 	while IFS= read -r -d '' file; do
-	  db="${file#/var/backup/db/@(daily|monthly|weekly|latest)/}";
+	  db="${file#/var/backups/db/@(daily|monthly|weekly|latest)/}";
 	  db="${db%/Manifest}";
 	  manifest_files_db[i]="$db"
 	  manifest_files[i++]="$file"
