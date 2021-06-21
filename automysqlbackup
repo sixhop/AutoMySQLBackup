@@ -88,6 +88,7 @@ load_default_config() {
   CONFIG_mysql_dump_use_separate_dirs='yes'
   CONFIG_mysql_dump_compression='gzip'
   CONFIG_mysql_dump_commcomp='no'
+  CONFIG_mysql_dump_hex_blob='no'
   CONFIG_mysql_dump_latest='no'
   CONFIG_mysql_dump_latest_clean_filenames='no'
   CONFIG_mysql_dump_max_allowed_packet=''
@@ -556,6 +557,10 @@ parse_configuration () {
     [[ "${CONFIG_mysql_dump_max_allowed_packet}" ]]		&& {
 	  opt=( "${opt[@]}" "--max_allowed_packet=${CONFIG_mysql_dump_max_allowed_packet}" )
 	  opt_fullschema=( "${opt_fullschema[@]}" "--max_allowed_packet=${CONFIG_mysql_dump_max_allowed_packet}" )
+    }
+    [[ "${CONFIG_mysql_dump_hex_blob}" = "yes" ]]		&& {
+	  opt=( "${opt[@]}" '--hex-blob' )
+	  opt_fullschema=( "${opt_fullschema[@]}" '--hex-blob' )
     }
     [[ "${CONFIG_mysql_dump_socket}" ]]			&& {
 	  opt=( "${opt[@]}" "--socket=${CONFIG_mysql_dump_socket}" )
