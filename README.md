@@ -49,6 +49,8 @@ Backup your mysql server with ease by using this adjusted script. If you encount
 
 For more Information check out [Webagentur sixhop.net](https://www.sixhop.net/webseiten-erstellung/).
 
+Auch genutzt in meinem Onlineshop für [Verlobungsringe und Trauringe](https://www.lovelyrings.de)
+
 Deutsche Version
 ================
 
