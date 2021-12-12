@@ -2246,7 +2246,8 @@ method_list_manifest_entries () {
 	# BEGIN __MAIN
 	unset manifest_files manifest_files_db i db
 	while IFS= read -r -d '' file; do
-	  db="${file#/var/backups/db/@(daily|monthly|weekly|latest)/}";
+	  #db="${file#/var/backups/db/@(daily|monthly|weekly|latest)/}";
+	  db="${file#${CONFIG_backup_dir}/@(daily|monthly|weekly|latest)/}";
 	  db="${db%/Manifest}";
 	  manifest_files_db[i]="$db"
 	  manifest_files[i++]="$file"
