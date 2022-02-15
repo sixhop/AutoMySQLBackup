@@ -16,7 +16,7 @@
 #
 shopt -s extglob
 
-# BEGIN Plattform specific configuration
+# BEGIN Platform specific configuration
 # Check for sed option if osx is used
 if [ "`uname -s`" = "Darwin" ]; then
     sed_Regex='E'
@@ -95,6 +95,7 @@ load_default_config() {
   CONFIG_mysql_dump_single_transaction='no'
   CONFIG_mysql_dump_master_data=
   CONFIG_mysql_dump_full_schema='yes'
+  CONFIG_mysql_also_dump_schema='no'
   CONFIG_mysql_dump_dbstatus='yes'
   CONFIG_mysql_dump_differential='no'
   CONFIG_mysql_dump_login_path='automysqldump'
@@ -113,6 +114,8 @@ load_default_config() {
   CONFIG_mail_address='root'
   CONFIG_encrypt='no'
   CONFIG_encrypt_password='password0123'
+  CONFIG_debug=0
+  CONFIG_dryrun=0
 }
 
 mysql_commands() {
@@ -466,22 +469,22 @@ backup_local_files () {
     if (( $CONFIG_dryrun )); then
       case "${CONFIG_mysql_dump_compression}" in
 	  'gzip')
-	    echo "tar -czvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
+	    echo "tar -czvf ${1}${suffix} ${CONFIG_backup_local_files[*]}";
 	    ;;
 	  'bzip2')
-	    echo "tar -cjvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
+	    echo "tar -cjvf ${1}${suffix} ${CONFIG_backup_local_files[*]}";
 	    ;;
 	  'xz')
-	    echo "tar -cJvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
+	    echo "tar -cJvf ${1}${suffix} ${CONFIG_backup_local_files[*]}";
 	    ;;
 	  'zstd')
-	    echo "tar -I zstd -cvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
+	    echo "tar -I zstd -cvf ${1}${suffix} ${CONFIG_backup_local_files[*]}";
 	    ;;
 	  *)
-	    echo "tar -cvf ${1}${suffix} ${CONFIG_backup_local_files[@]}";
+	    echo "tar -cvf ${1}${suffix} ${CONFIG_backup_local_files[*]}";
 	    ;;
       esac
-      echo "dry-running: tar -cv ${1} ${CONFIG_backup_local_files[@]}"
+      echo "dry-running: tar -cv ${1} ${CONFIG_backup_local_files[*]}"
       return 0;
     else
       case "${CONFIG_mysql_dump_compression}" in
@@ -526,6 +529,9 @@ parse_configuration () {
     # OPT string for use with mysqldump fullschema
     opt_fullschema=( '--all-databases' '--routines' '--no-data' )
 
+    # OPT string for use with mysqldump schema
+    opt_schema=( '--routines' '--no-data' )
+
 	# OPT string for use with mysqlstatus
 	opt_dbstatus=( '--status' )
 
@@ -534,6 +540,7 @@ parse_configuration () {
 		  opt=( "${opt[@]}" '--ssl-mode=REQUIRED' )
 		  mysql_opt=( "${mysql_opt[@]}" '--ssl-mode=REQUIRED' )
 		  opt_fullschema=( "${opt_fullschema[@]}" '--ssl-mode=REQUIRED' )
+		  opt_schema=( "${opt_schema[@]}" '--ssl-mode=REQUIRED' )
 		  opt_dbstatus=( "${opt_dbstatus[@]}" '--ssl-mode=REQUIRED' )
 		}
 	else
@@ -541,6 +548,7 @@ parse_configuration () {
 		  opt=( "${opt[@]}" '--ssl' )
 		  mysql_opt=( "${mysql_opt[@]}" '--ssl' )
 		  opt_fullschema=( "${opt_fullschema[@]}" '--ssl' )
+		  opt_schema=( "${opt_schema[@]}" '--ssl' )
 		  opt_dbstatus=( "${opt_dbstatus[@]}" '--ssl' )
 		}
 	fi
@@ -548,30 +556,36 @@ parse_configuration () {
     [[ "${CONFIG_mysql_dump_single_transaction}" = "yes" ]]	&& {
 	  opt=( "${opt[@]}" '--single-transaction' )
 	  opt_fullschema=( "${opt_fullschema[@]}" '--single-transaction' )
+	  opt_schema=( "${opt_schema[@]}" '--single-transaction' )
     }
     [[ "${CONFIG_mysql_dump_commcomp}" = "yes" ]]		&& {
 	  opt=( "${opt[@]}" '--compress' )
 	  opt_fullschema=( "${opt_fullschema[@]}" '--compress' )
+	  opt_schema=( "${opt_schema[@]}" '--compress' )
 	  opt_dbstatus=( "${opt_dbstatus[@]}" '--compress' )
     }
     [[ "${CONFIG_mysql_dump_max_allowed_packet}" ]]		&& {
 	  opt=( "${opt[@]}" "--max_allowed_packet=${CONFIG_mysql_dump_max_allowed_packet}" )
 	  opt_fullschema=( "${opt_fullschema[@]}" "--max_allowed_packet=${CONFIG_mysql_dump_max_allowed_packet}" )
+	  opt_schema=( "${opt_schema[@]}" "--max_allowed_packet=${CONFIG_mysql_dump_max_allowed_packet}" )
     }
     [[ "${CONFIG_mysql_dump_hex_blob}" = "yes" ]]		&& {
 	  opt=( "${opt[@]}" '--hex-blob' )
 	  opt_fullschema=( "${opt_fullschema[@]}" '--hex-blob' )
+	  opt_schema=( "${opt_schema[@]}" '--hex-blob' )
     }
     [[ "${CONFIG_mysql_dump_socket}" ]]			&& {
 	  opt=( "${opt[@]}" "--socket=${CONFIG_mysql_dump_socket}" )
 	  mysql_opt=( "${mysql_opt[@]}" "--socket=${CONFIG_mysql_dump_socket}" )
 	  opt_fullschema=( "${opt_fullschema[@]}" "--socket=${CONFIG_mysql_dump_socket}" )
+	  opt_schema=( "${opt_schema[@]}" "--socket=${CONFIG_mysql_dump_socket}" )
 	  opt_dbstatus=( "${opt_dbstatus[@]}" "--socket=${CONFIG_mysql_dump_socket}" )
     }
     [[ "${CONFIG_mysql_dump_port}" ]]			&& {
 	  opt=( "${opt[@]}" "--port=${CONFIG_mysql_dump_port}" )
 	  mysql_opt=( "${mysql_opt[@]}" "--port=${CONFIG_mysql_dump_port}" )
 	  opt_fullschema=( "${opt_fullschema[@]}" "--port=${CONFIG_mysql_dump_port}" )
+	  opt_schema=( "${opt_schema[@]}" "--port=${CONFIG_mysql_dump_port}" )
 	  opt_dbstatus=( "${opt_dbstatus[@]}" "--port=${CONFIG_mysql_dump_port}" )
     }
 
@@ -588,6 +602,10 @@ parse_configuration () {
 
     if [[ "${CONFIG_mysql_dump_add_drop_database}" = "yes" ]]; then
       opt=( "${opt[@]}" '--add-drop-database' )
+    fi
+
+    if [[ "${CONFIG_mysql_also_dump_schema}" = "yes" ]]; then
+      opt=( "${opt[@]}" '--no-create-info' )
     fi
 
     if [[ "${CONFIG_mysql_dump_create_event}" = "yes" ]]; then
@@ -609,26 +627,30 @@ parse_configuration () {
       *)		suffix='';;
     esac
     # <- determine suffix
+}
 
-	# -> check exclude tables for wildcards
+# @info: Populates an array of table exclusions.
+# @deps: ${db_opt} must be defined in the calling scope.
+# @args: The name of the database currently being processed, or empty for --all-databases.
+exclude_tables() {
+	current="$1"
 	local tmp;tmp=()
 	local z;z=0
 	for i in "${CONFIG_table_exclude[@]}"; do
-	  r='^[^*.]+\.[^.]+$'; [[ "$i" =~ $r ]] || { printf 'The entry %s in CONFIG_table_exclude has a wrong format. Ignoring the entry.' "$i"; continue; }
+	  r='^[^.]+\.[^.]+$'; [[ "$i" =~ $r ]] || { printf 'The entry %s in CONFIG_table_exclude has a wrong format. Ignoring the entry.' "$i"; continue; }
 	  db=${i%.*}
-	  table=${i#"$db".}
-	  r='\*'; [[ "$i" =~ $r ]] || { tmp[z++]="$i"; continue; }
-	  while read -r; do tmp[z++]="${db}.${REPLY}"; done < <($MYSQL "${mysql_opt[@]}" --batch --skip-column-names -e "select table_name from information_schema.tables where table_schema='${db}' and table_name like '${table//\*/%}';")
+	  table=${i#*.}
+	  r='\*|\%'; [[ "$i" =~ $r ]] || { tmp[z++]="$i"; continue; }
+	  while read -r; do tmp[z++]="${REPLY}"; done < <($MYSQL "${mysql_opt[@]}" --batch --skip-column-names -e "select concat(table_schema, '.', table_name) from information_schema.tables where table_schema like '${db}' and table_name like '${table//\*/%}';")
 	done
-	for l in "${tmp[@]}"; do echo "exclude $l";done
-	CONFIG_table_exclude=("${tmp[@]}")
-	# <-
 
-    if ((${#CONFIG_table_exclude[@]})); then
-      for i in "${CONFIG_table_exclude[@]}"; do
-		opt=( "${opt[@]}" "--ignore-table=$i" )
-      done
-    fi
+	if ((${#tmp[@]})); then
+		for i in "${tmp[@]}"; do
+			if [ -z "$current" ] || [ "$current" = "${i%.*}" ] ; then
+			  db_opt=( "${db_opt[@]}" "--ignore-table" "$i" )
+			fi
+		done
+	fi
 }
 
 # @info:	Backup database status
@@ -639,19 +661,19 @@ dbstatus() {
   if (( $CONFIG_dryrun )); then
     case "${CONFIG_mysql_dump_compression}" in
 	'gzip')
-	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | gzip_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[*]} | gzip_compression > ${1}${suffix}";
 	  ;;
 	'bzip2')
-	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | bzip2_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[*]} | bzip2_compression > ${1}${suffix}";
 	  ;;
 	'xz')
-	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | xz_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[*]} | xz_compression > ${1}${suffix}";
 	  ;;
 	'zstd')
-	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} | zstd_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[*]} | zstd_compression > ${1}${suffix}";
 	  ;;
 	*)
-	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[@]} > ${1}${suffix}";
+	  echo "dry-running: $MYSQLSHOW ${opt_dbstatus[*]} > ${1}${suffix}";
 	  ;;
     esac
     return 0;
@@ -689,19 +711,19 @@ fullschema () {
   if (( $CONFIG_dryrun )); then
     case "${CONFIG_mysql_dump_compression}" in
 	'gzip')
-	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | gzip_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[*]} | gzip_compression > ${1}${suffix}";
 	  ;;
 	'bzip2')
-	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | bzip2_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[*]} | bzip2_compression > ${1}${suffix}";
 	  ;;
 	'xz')
-	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | xz_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[*]} | xz_compression > ${1}${suffix}";
 	  ;;
 	'zstd')
-	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} | zstd_compression > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[*]} | zstd_compression > ${1}${suffix}";
 	  ;;
 	*)
-	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[@]} > ${1}${suffix}";
+	  echo "dry-running: $MYSQLDUMP ${opt_fullschema[*]} > ${1}${suffix}";
 	  ;;
     esac
     return 0;
@@ -747,6 +769,10 @@ process_dbs() {
   local name
   local subsubfolder
 
+  # @var $db_opt string[] Database-specific options for dump command.
+  local db_opt
+  db_opt=()
+
   # only activate differential backup for daily backups
   [[ "x$subfolder" != "xdaily" ]] && activate_differential_backup=0 || activate_differential_backup=1
 
@@ -776,9 +802,11 @@ process_dbs() {
   if (( $multipledbs )); then
 	# multiple databases
 	db="all-databases"
+	exclude_tables
   else
 	# single db
 	db="$1"
+	exclude_tables "$db"
   fi
 
   if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && (( $activate_differential_backup )); then
@@ -846,19 +874,19 @@ process_dbs() {
 		uid="${uid:-8:8}"
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
-		  $MYSQLDUMP "${opt[@]}" "$@" | gzip_compression > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@" | gzip_compression > "$cfname";
 		  ;;
 		'bzip2')
-		  $MYSQLDUMP "${opt[@]}" "$@" | bzip2_compression > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@" | bzip2_compression > "$cfname";
 		  ;;
 		'xz')
-		  $MYSQLDUMP "${opt[@]}" "$@" | xz_compression > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@" | xz_compression > "$cfname";
 		  ;;
 		'zstd')
-		  $MYSQLDUMP "${opt[@]}" "$@" | zstd_compression > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@" | zstd_compression > "$cfname";
 		  ;;
 		*)
-		  $MYSQLDUMP "${opt[@]}" "$@" > "$cfname";
+		  $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@" > "$cfname";
 		  ;;
 		esac
 		add_manifest_entry "$manifest_file" "$cfname" "$pid" "$db" && parse_manifest "$manifest_file" && cp -al "$cfname" "${CONFIG_backup_dir}"/latest/ && echo "Generated master backup $cfname" && return 0 || return 1
@@ -871,59 +899,59 @@ process_dbs() {
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | gzip_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | gzip_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_xz )); then
-			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | gzip_compression > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | gzip_compression > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | gzip_compression > "$cfname";
 		  fi
 		  ;;
 		'bzip2')
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_xz )); then
-			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | bzip2_compression > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | bzip2_compression > "$cfname";
 		  fi
 		  ;;
 		'xz')
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_xz )); then
-			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  fi
 		  ;;
 		'zstd')
 		  if (( $filename_flags & $filename_flag_zst )); then
-			diff <(zstd_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff <(zstd_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  elif (( $filename_flags & $filename_flag_xz )); then
-			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") | xz_compression > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "$cfname";
 		  fi
 		  ;;
 		*)
 		  if (( $filename_flags & $filename_flag_gz )); then
-			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
+			diff <(gzip_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") > "$cfname";
 		  elif (( $filename_flags & $filename_flag_bz2 )); then
-			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
+			diff <(bzip2_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") > "$cfname";
 		  elif (( $filename_flags & $filename_flag_xz )); then
-			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
+			diff <(xz_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") > "$cfname";
 		  elif (( $filename_flags & $filename_flag_zst )); then
-			diff <(zstd_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
+			diff <(zstd_compression -dc "${manifest_latest_master_entry[0]}") <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") > "$cfname";
 		  else
-			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "$@") > "$cfname";
+			diff "${manifest_latest_master_entry[0]}" <($MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") > "$cfname";
 		  fi
 		  ;;
 		esac
@@ -937,19 +965,19 @@ process_dbs() {
 	  if (( $CONFIG_dryrun )); then
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
-		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | gzip_compression > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[*]} ${db_opt[*]} $* | gzip_compression > ${cfname}"
 		  ;;
 		'bzip2')
-		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | bzip2_compression > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[*]} ${db_opt[*]} $* | bzip2_compression > ${cfname}"
 		  ;;
 		'xz')
-		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | xz_compression > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[*]} ${db_opt[*]} $* | xz_compression > ${cfname}"
 		  ;;
 		'zstd')
-		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ | zstd_compression > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[*]} ${db_opt[*]} $* | zstd_compression > ${cfname}"
 		  ;;
 		*)
-		  echo "dry-running: $MYSQLDUMP ${opt[@]} $@ > ${cfname}"
+		  echo "dry-running: $MYSQLDUMP ${opt[*]} ${db_opt[*]} $* > ${cfname}"
 		  ;;
 		esac
 		return 0;
@@ -962,23 +990,24 @@ process_dbs() {
         fi
 		case "${CONFIG_mysql_dump_compression}" in
 		'gzip')
-		  $MYSQLDUMP "${opt[@]}" "$@" | gzip_compression > "${cfname}"
+		  ( if [ "${CONFIG_mysql_also_dump_schema}" = 'yes' ]; then $MYSQLDUMP "${opt_schema[@]}" "$@"; fi; $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | gzip_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		'bzip2')
-		  $MYSQLDUMP "${opt[@]}" "$@" | bzip2_compression > "${cfname}"
+		  ( if [ "${CONFIG_mysql_also_dump_schema}" = 'yes' ]; then $MYSQLDUMP "${opt_schema[@]}" "$@"; fi; $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | bzip2_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		'xz')
-		  $MYSQLDUMP "${opt[@]}" "$@" | xz_compression > "${cfname}"
+		  ( if [ "${CONFIG_mysql_also_dump_schema}" = 'yes' ]; then $MYSQLDUMP "${opt_schema[@]}" "$@"; fi; $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | xz_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		'zstd')
-		  $MYSQLDUMP "${opt[@]}" "$@" | zstd_compression > "${cfname}"
+		  ( if [ "${CONFIG_mysql_also_dump_schema}" = 'yes' ]; then $MYSQLDUMP "${opt_schema[@]}" "$@"; fi; $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") | zstd_compression > "${cfname}"
 		  ret=$?
 		  ;;
 		*)
-		  $MYSQLDUMP "${opt[@]}" "$@" > "${cfname}"
+		  ( if [ "${CONFIG_mysql_also_dump_schema}" = 'yes' ]; then $MYSQLDUMP "${opt_schema[@]}" "$@"; fi; $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@") > "${cfname}"
+		  $MYSQLDUMP "${opt[@]}" "${db_opt[@]}" "$@" > "${cfname}"
 		  ret=$?
 		  ;;
 		esac
@@ -1003,7 +1032,7 @@ process_dbs() {
 	  backupfiles=( "${backupfiles[@]}" "${cfname}${var}" )
   else
 	  let "E |= $E_dbdump_failed"
-	  echo "dbdump with parameters \"${CONFIG_db_names[@]}\" \"${cfname}\" failed!"
+	  echo "dbdump with parameters \"${CONFIG_db_names[*]}\" \"${cfname}\" failed!"
   fi
 }
 
@@ -1041,7 +1070,7 @@ directory_checks_enable_logging () {
     # Check directories and do cleanup work
 
     checkdirs=( "${CONFIG_backup_dir}"/{daily,weekly,monthly,latest,tmp} )
-    [[ "${CONFIG_backup_local_files[@]}" ]] && { checkdirs=( "${checkdirs[@]}" "${CONFIG_backup_dir}/backup_local_files" ); }
+    [[ "${CONFIG_backup_local_files[*]}" ]] && { checkdirs=( "${checkdirs[@]}" "${CONFIG_backup_dir}/backup_local_files" ); }
     [[ "${CONFIG_mysql_dump_full_schema}" = 'yes' ]] && { checkdirs=( "${checkdirs[@]}" "${CONFIG_backup_dir}/fullschema" ); }
 	[[ "${CONFIG_mysql_dump_dbstatus}" = 'yes' ]] && { checkdirs=( "${checkdirs[@]}" "${CONFIG_backup_dir}/status" ); }
 
@@ -1363,7 +1392,7 @@ check_manifest_entry() {
 #			-> file does not exist -> remove entry from manifest; continue no matter if this succeeds or not
 #		loop through previous entries in the manifest
 #			filename already in there? remove all entries with the same filename but the one that is already in the array
-#			md5sum has already occured?
+#			md5sum has already occurred?
 #				if size = 0
 #					then don't compare
 #				else
@@ -1933,7 +1962,7 @@ method_backup () {
 	# <- preback commands
 
 	# -> backup local files
-	if [[ "${CONFIG_backup_local_files[@]}" ]] && [[ ${CONFIG_do_weekly} != 0 && ${date_dayno_of_week} = ${CONFIG_do_weekly} ]] && (shopt -s nullglob dotglob; f=("${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${date_stamp}_"[0-9][0-9]"h"[0-9][0-9]"m_${date_weekno}.tar${suffix}"); ((! ${#f[@]}))); then
+	if [[ "${CONFIG_backup_local_files[*]}" ]] && [[ ${CONFIG_do_weekly} != 0 && ${date_dayno_of_week} = ${CONFIG_do_weekly} ]] && (shopt -s nullglob dotglob; f=("${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${date_stamp}_"[0-9][0-9]"h"[0-9][0-9]"m_${date_weekno}.tar${suffix}"); ((! ${#f[@]}))); then
 		echo "======================================================================"
 		echo "Backup local files. Doing this weekly on CONFIG_do_weekly."
 		echo
@@ -2106,7 +2135,7 @@ method_backup () {
 			  echo ----------------------------------------------------------------------
 			done
 		  else
-			  echo "Monthly backup of databases ( ${CONFIG_db_month_names[@]} )."
+			  echo "Monthly backup of databases ( ${CONFIG_db_month_names[*]} )."
 			  (shopt -s nullglob dotglob; f=("${CONFIG_backup_dir}/${subfolder}/${prefix}all-databases_${date_stamp}_"[0-9][0-9]"h"[0-9][0-9]"m${midfix}${extension}${suffix}"); ((${#f[@]}))) &&
 				process_dbs "$subfolder" "$prefix" "$midfix" "$extension" "$rotation" "$rotation_divisor" "$rotation_string" 1 "${CONFIG_db_month_names[@]}"
 			  echo "----------------------------------------------------------------------"
@@ -2134,7 +2163,7 @@ method_backup () {
 			  echo "----------------------------------------------------------------------"
 			done
 		  else
-			echo "Weekly backup of databases ( ${CONFIG_db_names[@]} )."
+			echo "Weekly backup of databases ( ${CONFIG_db_names[*]} )."
 			(shopt -s nullglob dotglob; f=("${CONFIG_backup_dir}/${subfolder}/${prefix}all-databases_${date_stamp}_"[0-9][0-9]"h"[0-9][0-9]"m${midfix}${extension}${suffix}"); ((${#f[@]}))) &&
 			  process_dbs "$subfolder" "$prefix" "$midfix" "$extension" "$rotation" "$rotation_divisor" "$rotation_string" 1 "${CONFIG_db_names[@]}"
 			echo "----------------------------------------------------------------------"
@@ -2162,7 +2191,7 @@ method_backup () {
 			  echo "----------------------------------------------------------------------"
 			done
 		  else
-			echo "Daily backup of databases ( ${CONFIG_db_names[@]} )."
+			echo "Daily backup of databases ( ${CONFIG_db_names[*]} )."
 			process_dbs "$subfolder" "$prefix" "$midfix" "$extension" "$rotation" "$rotation_divisor" "$rotation_string" 1 "${CONFIG_db_names[@]}"
 			echo "----------------------------------------------------------------------"
 		  fi
@@ -2246,7 +2275,6 @@ method_list_manifest_entries () {
 	# BEGIN __MAIN
 	unset manifest_files manifest_files_db i db
 	while IFS= read -r -d '' file; do
-	  #db="${file#/var/backups/db/@(daily|monthly|weekly|latest)/}";
 	  db="${file#${CONFIG_backup_dir}/@(daily|monthly|weekly|latest)/}";
 	  db="${db%/Manifest}";
 	  manifest_files_db[i]="$db"
