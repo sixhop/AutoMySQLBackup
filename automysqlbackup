@@ -96,6 +96,7 @@ load_default_config() {
   CONFIG_mysql_dump_master_data=
   CONFIG_mysql_dump_full_schema='yes'
   CONFIG_mysql_dump_dbstatus='yes'
+  CONFIG_mysql_dump_tablespaces='yes'
   CONFIG_mysql_dump_differential='no'
   CONFIG_mysql_dump_login_path='automysqldump'
   CONFIG_mysql_dump_login_path_file=''
@@ -592,6 +593,10 @@ parse_configuration () {
 
     if [[ "${CONFIG_mysql_dump_create_event}" = "yes" ]]; then
       opt=( "${opt[@]}" '--events' )
+    fi
+
+    if [[ "${CONFIG_mysql_dump_tablespaces}" = "no" ]]; then
+      opt=( "${opt[@]}" '--no-tablespaces' )
     fi
 
 	# if differential backup is active and the specified rotation is smaller than 21 days, set it to 21 days to ensure, that
