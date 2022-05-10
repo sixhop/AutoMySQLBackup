@@ -113,6 +113,8 @@ load_default_config() {
   CONFIG_mail_address='root'
   CONFIG_encrypt='no'
   CONFIG_encrypt_password='password0123'
+  CONFIG_gpg_encrypt='no'
+  CONFIG_gpg_encrypt_recipient='SHORT_ID'
 }
 
 mysql_commands() {
@@ -364,6 +366,27 @@ files_postprocessing () {
 	  fi
 	}
 	# <- CONFIG_encrypt
+
+	# -> CONFIG_gpg_encrypt
+	[[ "${CONFIG_gpg_encrypt}" = "yes" && "${CONFIG_gpg_encrypt_recipient}" ]] && {
+	  if (( $CONFIG_dryrun )); then
+	    printf 'dry-running: gpg --encrypt --recipient ${CONFIG_gpg_encrypt_recipient} --output ${1}.gpg --batch ${1}'
+	  else
+	    gpg --encrypt --recipient ${CONFIG_gpg_encrypt_recipient} --output ${1}.gpg --batch ${1}
+	    if (( $? == 0 )); then
+		  if rm ${1} 2>&1; then
+		    echo "Successfully encrypted archive as ${1}.gpg"
+		    let "flags |= $flags_files_postprocessing_success_encrypt"
+		  else
+		    echo "Successfully encrypted archive as ${1}.gpg, but could not remove cleartext file ${1}."
+		    let "E |= $E_enc_cleartext_delfailed"
+		  fi
+	    else
+		  let "E |= $E_enc_failed"
+	    fi
+	  fi
+	}
+	# <- CONFIG_gpg_encrypt
 
 	# -> CONFIG_mysql_dump_latest
 	[[ "${CONFIG_mysql_dump_latest}" = "yes" ]] && {
@@ -781,7 +804,7 @@ process_dbs() {
 	db="$1"
   fi
 
-  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && (( $activate_differential_backup )); then
+  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && [[ "x${CONFIG_gpg_encrypt}" != "xyes" ]] && (( $activate_differential_backup )); then
 
 
 	  unset manifest_entry manifest_entry_to_check
@@ -835,7 +858,7 @@ process_dbs() {
 
   fi
 
-  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && (( $activate_differential_backup )) && ((! ($filename_flags & $filename_flag_encrypted) )); then
+  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && [[ "x${CONFIG_gpg_encrypt}" != "xyes" ]] && (( $activate_differential_backup )) && ((! ($filename_flags & $filename_flag_encrypted) )); then
 
 	  # the master file is encrypted ... well this just shouldn't happen ^^ not going to decrypt or stuff like that ...at least not today :)
 
