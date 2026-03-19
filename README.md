@@ -23,7 +23,7 @@ Adjustments
 -----------
 
 You can find some original files from the sourceforge package. Some files are adjusted to my needs:
-- support for MySQL 5.6 and MySQL 5.7
+- support for MySQL 5.6, MySQL 5.7 and MariaDB
 - support for login path (since MySQL 5.6.x a secure way to save your mysql credentials was implemented)
 - adjusted the use of --ssl because it became depreated in MySQL 5.7. The parameter --ssl-mode=REQUIRED is used instead.
 
