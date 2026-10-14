@@ -23,7 +23,7 @@ Adjustments
 -----------
 
 You can find some original files from the sourceforge package. Some files are adjusted to my needs:
-- support for MySQL 5.6 and MySQL 5.7
+- support for MySQL 5.6, MySQL 5.7 and MariaDB
 - support for login path (since MySQL 5.6.x a secure way to save your mysql credentials was implemented)
 - adjusted the use of --ssl because it became depreated in MySQL 5.7. The parameter --ssl-mode=REQUIRED is used instead.
 
@@ -48,6 +48,8 @@ Get Involved
 Backup your mysql server with ease by using this adjusted script. If you encounter any errors feel free to [drop an issue](https://github.com/sixhop/AutoMySQLBackup/issues/new). :) (English or German)
 
 For more Information check out [Webagentur sixhop.net](https://www.sixhop.net/webseiten-erstellung/).
+
+Auch genutzt in meinem Onlineshop für [Verlobungsringe und Trauringe](https://www.lovelyrings.de)
 
 Deutsche Version
 ================

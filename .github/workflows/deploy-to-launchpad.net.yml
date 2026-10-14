@@ -1,0 +1,99 @@
+---
+name: Deploy to launchpad.net
+
+on:
+  push:
+    branches: 'ubuntu-*-*'
+
+jobs:
+  build:
+    name: Packaging software
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Import GPG key
+      uses: crazy-max/ghaction-import-gpg@v4
+      with:
+        gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
+
+    - name: Trust key
+      run: |
+        gpg --no-tty --command-fd 0 --edit-key ${{ secrets.GPG_KEY_ID }} <<EOTRUST
+        trust
+        5
+        y
+        quit
+        EOTRUST
+
+    - name: List keys
+      run: gpg -K
+
+    - name: Run install commands
+      run: sudo apt-get install dput devscripts debhelper
+
+    - name: Packaging software
+      run: |
+        cd $GITHUB_WORKSPACE
+        mkdir debian
+        mkdir debian/source
+
+        touch debian/install debian/preinst
+
+        echo "3.0 (native)" >> debian/source/format
+        echo "10" >> debian/compat
+        echo "mkdir -p /etc/automysqlbackup" >> debian/preinst
+
+        cat <<EOT >> debian/install
+        automysqlbackup usr/bin
+        automysqlbackup.conf etc/automysqlbackup
+        EOT
+
+        cat <<EOT >> debian/control
+        Source: automysqlbackup
+        Maintainer: ${{ secrets.GPG_OWNER }}
+        Section: utils
+        Priority: important
+        Build-Depends: debhelper (>= 10)
+        Standards-Version: 4.5.0
+
+        Package: automysqlbackup
+        Architecture: any
+        Homepage: https://github.com/sixhop/automysqlbackup
+        Description: A fork and further development of AutoMySQLBackup from sourceforge.
+        EOT
+
+    - name: Creating changelog
+      run: |
+        cd $GITHUB_WORKSPACE
+
+        echo -e '#!/usr/bin/make -f\n' >> debian/rules
+        echo -e '%:\n' >> debian/rules
+        echo -e '\tdh $@\n' >> debian/rules
+
+        echo -e "automysqlbackup ($(echo $GITHUB_REF | grep -oP "([0-9].*)")) $(echo $GITHUB_REF | grep -oP "(?<=\-).*(?=\-)"); urgency=medium\n" >> debian/changelog
+        echo -e "  * ${{ github.event.head_commit.message }}\n" >> debian/changelog
+        echo " -- ${{ secrets.GPG_OWNER }}  $(date +'%a, %d %b %Y %T %z')" >> debian/changelog
+
+        cat debian/changelog
+
+    - name: Building AutoMySQLBackup
+      run: |
+        cd $GITHUB_WORKSPACE
+        debuild -S -sa
+
+    - name: Creating PPA configuration
+      run: |
+        echo "[ppa]" >> $HOME/.dput.cf
+        echo "fqdn = ppa.launchpad.net" >> $HOME/.dput.cf
+        echo "method = ftp" >> $HOME/.dput.cf
+        echo "incoming = ${{ secrets.PPA_INCOMING }}" >> $HOME/.dput.cf
+        echo "login = anonymous" >> $HOME/.dput.cf
+        echo "allow_unsigned_uploads = 0" >> $HOME/.dput.cf
+
+    - name: Publishing to PPA
+      run: |
+        cd $GITHUB_WORKSPACE
+        dput ppa ../automysqlbackup_$(echo $GITHUB_REF | grep -oP "([0-9].*)" )_source.changes
