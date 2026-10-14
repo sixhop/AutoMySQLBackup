@@ -75,6 +75,9 @@ load_default_config() {
   CONFIG_rotation_daily=6
   CONFIG_rotation_weekly=35
   CONFIG_rotation_monthly=150
+  CONFIG_mysql_bin=''
+  CONFIG_mysqldump_bin=''
+  CONFIG_mysqlshow_bin=''
   CONFIG_mysql_dump_port=3306
   CONFIG_mysql_dump_usessl='no'
   CONFIG_mysql_dump_username='root'
@@ -116,22 +119,35 @@ load_default_config() {
   CONFIG_encrypt_password='password0123'
   CONFIG_debug=0
   CONFIG_dryrun=0
+  CONFIG_gpg_encrypt='no'
+  CONFIG_gpg_encrypt_recipient='SHORT_ID'
 }
 
 mysql_commands() {
-  VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1`
+  # Detect MariaDB or use MySQL
+  if isMariaDB; then
+    [[ -z "${CONFIG_mysql_bin}" ]] && CONFIG_mysql_bin='mariadb'
+    [[ -z "${CONFIG_mysqldump_bin}" ]] && CONFIG_mysqldump_bin='mariadb-dump'
+    [[ -z "${CONFIG_mysqlshow_bin}" ]] && CONFIG_mysqlshow_bin='mariadb-show'
+  else
+    [[ -z "${CONFIG_mysql_bin}" ]] && CONFIG_mysql_bin='mysql'
+    [[ -z "${CONFIG_mysqldump_bin}" ]] && CONFIG_mysqldump_bin='mysqldump'
+    [[ -z "${CONFIG_mysqlshow_bin}" ]] && CONFIG_mysqlshow_bin='mysqlshow'
+  fi
+
+  VERSION=`${CONFIG_mysql_bin} -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1`
   NODOT_VER=`echo $VERSION | sed -${sed_Regex} 's/\.//g'`
   if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
-    export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
-    export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
-    export MYSQL="mysql --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQLDUMP="${CONFIG_mysqldump_bin} --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQLSHOW="${CONFIG_mysqlshow_bin} --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQL="${CONFIG_mysql_bin} --login-path=$CONFIG_mysql_dump_login_path"
     if [ -n "${CONFIG_mysql_dump_login_path_file}" ]; then
       export MYSQL_TEST_LOGIN_FILE=$CONFIG_mysql_dump_login_path_file
     fi
   else
-    export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-    export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-    export MYSQL="mysql --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQLDUMP="${CONFIG_mysqldump_bin} --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQLSHOW="${CONFIG_mysqlshow_bin} --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQL="${CONFIG_mysql_bin} --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
   fi
 }
 
@@ -143,6 +159,12 @@ isSet() {
 # @return:	true, if variable is empty; else false
 isEmpty() {
   if [[ ${!1} ]]; then return 1; else return 0; fi
+}
+
+# @return:	true, if mariadb is installed; else false
+isMariaDB() {
+   type mariadb &>/dev/null
+   return $?
 }
 
 # @info:	Called when one of the signals EXIT, SIGHUP, SIGINT, SIGQUIT or SIGTERM is emitted.
@@ -368,6 +390,27 @@ files_postprocessing () {
 	}
 	# <- CONFIG_encrypt
 
+	# -> CONFIG_gpg_encrypt
+	[[ "${CONFIG_gpg_encrypt}" = "yes" && "${CONFIG_gpg_encrypt_recipient}" ]] && {
+	  if (( $CONFIG_dryrun )); then
+	    printf 'dry-running: gpg --encrypt --recipient ${CONFIG_gpg_encrypt_recipient} --output ${1}.gpg --batch ${1}'
+	  else
+	    gpg --encrypt --recipient ${CONFIG_gpg_encrypt_recipient} --output ${1}.gpg --batch ${1}
+	    if (( $? == 0 )); then
+		  if rm ${1} 2>&1; then
+		    echo "Successfully encrypted archive as ${1}.gpg"
+		    let "flags |= $flags_files_postprocessing_success_encrypt"
+		  else
+		    echo "Successfully encrypted archive as ${1}.gpg, but could not remove cleartext file ${1}."
+		    let "E |= $E_enc_cleartext_delfailed"
+		  fi
+	    else
+		  let "E |= $E_enc_failed"
+	    fi
+	  fi
+	}
+	# <- CONFIG_gpg_encrypt
+
 	# -> CONFIG_mysql_dump_latest
 	[[ "${CONFIG_mysql_dump_latest}" = "yes" ]] && {
 	  if (( $flags & $flags_files_postprocessing_success_encrypt )); then
@@ -465,7 +508,7 @@ error_handler () {
 # @return:	true in case of dry-run, otherwise the return value of tar -cvf
 # @deps:	load_default_config
 backup_local_files () {
-  if ((! ${#CONFIG_backup_local_files[@]})) ; then
+  if ((${#CONFIG_backup_local_files[@]})) ; then
     if (( $CONFIG_dryrun )); then
       case "${CONFIG_mysql_dump_compression}" in
 	  'gzip')
@@ -809,7 +852,7 @@ process_dbs() {
 	exclude_tables "$db"
   fi
 
-  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && (( $activate_differential_backup )); then
+  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && [[ "x${CONFIG_gpg_encrypt}" != "xyes" ]] && (( $activate_differential_backup )); then
 
 
 	  unset manifest_entry manifest_entry_to_check
@@ -863,7 +906,7 @@ process_dbs() {
 
   fi
 
-  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && (( $activate_differential_backup )) && ((! ($filename_flags & $filename_flag_encrypted) )); then
+  if [[ "x$CONFIG_mysql_dump_differential" = "xyes" ]] && [[ "x${CONFIG_encrypt}" != "xyes" ]] && [[ "x${CONFIG_gpg_encrypt}" != "xyes" ]] && (( $activate_differential_backup )) && ((! ($filename_flags & $filename_flag_encrypted) )); then
 
 	  # the master file is encrypted ... well this just shouldn't happen ^^ not going to decrypt or stuff like that ...at least not today :)
 
@@ -1216,7 +1259,11 @@ cleanup_latest ()  {
 check_dependencies () {
     echo
     echo "# Testing for installed programs"
-    dependencies=( 'mysql' 'mysqldump' )
+    if isMariaDB; then
+      dependencies=( 'mariadb' 'mariadb-dump' )
+    else
+      dependencies=( 'mysql' 'mysqldump' )
+    fi
 
 	if [[ "x$CONFIG_multicore" = 'xyes' ]]; then
 
