@@ -75,6 +75,9 @@ load_default_config() {
   CONFIG_rotation_daily=6
   CONFIG_rotation_weekly=35
   CONFIG_rotation_monthly=150
+  CONFIG_mysql_bin=''
+  CONFIG_mysqldump_bin=''
+  CONFIG_mysqlshow_bin=''
   CONFIG_mysql_dump_port=3306
   CONFIG_mysql_dump_usessl='no'
   CONFIG_mysql_dump_username='root'
@@ -118,19 +121,30 @@ load_default_config() {
 }
 
 mysql_commands() {
-  VERSION=`mysql -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1`
+  # Detect MariaDB or use MySQL
+  if isMariaDB; then
+    [[ -z "${CONFIG_mysql_bin}" ]] && CONFIG_mysql_bin='mariadb'
+    [[ -z "${CONFIG_mysqldump_bin}" ]] && CONFIG_mysqldump_bin='mariadb-dump'
+    [[ -z "${CONFIG_mysqlshow_bin}" ]] && CONFIG_mysqlshow_bin='mariadb-show'
+  else
+    [[ -z "${CONFIG_mysql_bin}" ]] && CONFIG_mysql_bin='mysql'
+    [[ -z "${CONFIG_mysqldump_bin}" ]] && CONFIG_mysqldump_bin='mysqldump'
+    [[ -z "${CONFIG_mysqlshow_bin}" ]] && CONFIG_mysqlshow_bin='mysqlshow'
+  fi
+
+  VERSION=`${CONFIG_mysql_bin} -V | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1`
   NODOT_VER=`echo $VERSION | sed -${sed_Regex} 's/\.//g'`
   if [ "${CONFIG_mysql_dump_encrypted_login}" = "yes" ]; then
-    export MYSQLDUMP="mysqldump --login-path=$CONFIG_mysql_dump_login_path"
-    export MYSQLSHOW="mysqlshow --login-path=$CONFIG_mysql_dump_login_path"
-    export MYSQL="mysql --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQLDUMP="${CONFIG_mysqldump_bin} --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQLSHOW="${CONFIG_mysqlshow_bin} --login-path=$CONFIG_mysql_dump_login_path"
+    export MYSQL="${CONFIG_mysql_bin} --login-path=$CONFIG_mysql_dump_login_path"
     if [ -n "${CONFIG_mysql_dump_login_path_file}" ]; then
       export MYSQL_TEST_LOGIN_FILE=$CONFIG_mysql_dump_login_path_file
     fi
   else
-    export MYSQLDUMP="mysqldump --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-    export MYSQLSHOW="mysqlshow --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
-    export MYSQL="mysql --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQLDUMP="${CONFIG_mysqldump_bin} --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQLSHOW="${CONFIG_mysqlshow_bin} --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
+    export MYSQL="${CONFIG_mysql_bin} --user=${CONFIG_mysql_dump_username} --password=${CONFIG_mysql_dump_password} --host=${CONFIG_mysql_dump_host}";
   fi
 }
 
@@ -142,6 +156,12 @@ isSet() {
 # @return:	true, if variable is empty; else false
 isEmpty() {
   if [[ ${!1} ]]; then return 1; else return 0; fi
+}
+
+# @return:	true, if mariadb is installed; else false
+isMariaDB() {
+   type mariadb &>/dev/null
+   return $?
 }
 
 # @info:	Called when one of the signals EXIT, SIGHUP, SIGINT, SIGQUIT or SIGTERM is emitted.
@@ -1210,7 +1230,11 @@ cleanup_latest ()  {
 check_dependencies () {
     echo
     echo "# Testing for installed programs"
-    dependencies=( 'mysql' 'mysqldump' )
+    if isMariaDB; then
+      dependencies=( 'mariadb' 'mariadb-dump' )
+    else
+      dependencies=( 'mysql' 'mysqldump' )
+    fi
 
 	if [[ "x$CONFIG_multicore" = 'xyes' ]]; then
 
