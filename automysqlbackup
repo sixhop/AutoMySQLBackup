@@ -505,7 +505,7 @@ error_handler () {
 # @return:	true in case of dry-run, otherwise the return value of tar -cvf
 # @deps:	load_default_config
 backup_local_files () {
-  if ((! ${#CONFIG_backup_local_files[@]})) ; then
+  if ((${#CONFIG_backup_local_files[@]})) ; then
     if (( $CONFIG_dryrun )); then
       case "${CONFIG_mysql_dump_compression}" in
 	  'gzip')
